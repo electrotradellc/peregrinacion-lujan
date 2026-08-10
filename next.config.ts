@@ -2,7 +2,12 @@ import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Next.js bloquea por defecto los pedidos al servidor de desarrollo que
+  // vengan de un origen distinto a localhost (protección anti DNS-rebinding).
+  // Hace falta esto para poder probar desde el celular/otra compu en la
+  // misma red usando la IP local — si esa IP cambia (reinicio del router,
+  // etc.), hay que actualizarla acá.
+  allowedDevOrigins: ["192.168.0.190"],
 };
 
 const withSerwist = withSerwistInit({
