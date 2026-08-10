@@ -1,0 +1,29 @@
+import Link from "next/link";
+import { requireAdmin } from "@/lib/auth";
+import { SignOutButton } from "@/components/admin/SignOutButton";
+
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const session = await requireAdmin();
+
+  return (
+    <div className="min-h-screen bg-neutral-50">
+      <header className="border-b border-neutral-200 bg-white">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+          <nav className="flex flex-wrap items-center gap-4 text-sm font-medium">
+            <Link href="/admin/eventos" className="text-neutral-900">
+              Eventos
+            </Link>
+            <Link href="/admin/usuarios" className="text-neutral-600 hover:text-neutral-900">
+              Usuarios
+            </Link>
+          </nav>
+          <div className="flex items-center gap-3 text-sm text-neutral-600">
+            <span>{session.profile.full_name}</span>
+            <SignOutButton />
+          </div>
+        </div>
+      </header>
+      <div className="mx-auto max-w-6xl px-4 py-8">{children}</div>
+    </div>
+  );
+}
