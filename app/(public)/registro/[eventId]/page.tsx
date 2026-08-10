@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { EventRow, StartingPointRow } from "@/lib/types";
@@ -28,6 +29,9 @@ export default async function RegistroPage({
             ? "La inscripción todavía no está abierta. Volvé a intentarlo más adelante."
             : "La inscripción para este evento ya está cerrada."}
         </p>
+        <Link href="/login" className="mt-8 inline-block text-xs text-neutral-400 hover:text-neutral-600">
+          Acceso para organizadores
+        </Link>
       </main>
     );
   }
@@ -58,6 +62,12 @@ export default async function RegistroPage({
         event={event}
         startingPoints={startingPoints ?? []}
       />
+
+      <footer className="mt-10 text-center">
+        <Link href="/login" className="text-xs text-neutral-400 hover:text-neutral-600">
+          Acceso para organizadores
+        </Link>
+      </footer>
     </main>
   );
 }
