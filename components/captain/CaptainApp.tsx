@@ -84,6 +84,13 @@ export function CaptainApp({
     ) ?? [];
   const pendingCount = useLiveQuery(() => db.checkins.where("synced").equals(0).count()) ?? 0;
 
+  // Luján (última parada) es la única donde se embarca de Vuelta.
+  const lastStop = stops[stops.length - 1];
+  const availableStops = direction === "return" ? (lastStop ? [lastStop] : []) : stops;
+  const isLastStop = stopId === lastStop?.id;
+  const hideArrival = isLastStop && direction === "return";
+  const hideDeparture = isLastStop && direction === "outbound";
+
   async function handleSyncRoster() {
     setSyncingRoster(true);
     try {
@@ -155,7 +162,10 @@ export function CaptainApp({
           Ida
         </button>
         <button
-          onClick={() => setDirection("return")}
+          onClick={() => {
+            setDirection("return");
+            if (lastStop) setStopId(lastStop.id);
+          }}
           className={`flex-1 rounded-md px-3 py-2 ${direction === "return" ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
         >
           Vuelta
@@ -169,7 +179,7 @@ export function CaptainApp({
           onChange={(e) => setStopId(e.target.value)}
           className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
         >
-          {stops.map((s) => (
+          {availableStops.map((s) => (
             <option key={s.id} value={s.id}>
               {s.sequence_order}. {s.name}
             </option>
@@ -194,18 +204,22 @@ export function CaptainApp({
                   {hasAnyMedicalFlag(r) && <span className="ml-1 text-amber-600">⚠</span>}
                 </button>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => handleCheckin(r.registration_id, "arrival")}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold ${arrived ? "bg-green-700 text-white" : "border border-neutral-300"}`}
-                  >
-                    {arrived ? "✓ Llegó" : "Llegada"}
-                  </button>
-                  <button
-                    onClick={() => handleCheckin(r.registration_id, "departure")}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold ${departed ? "bg-green-700 text-white" : "border border-neutral-300"}`}
-                  >
-                    {departed ? "✓ Salió" : "Salida"}
-                  </button>
+                  {!hideArrival && (
+                    <button
+                      onClick={() => handleCheckin(r.registration_id, "arrival")}
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold ${arrived ? "bg-green-700 text-white" : "border border-neutral-300"}`}
+                    >
+                      {arrived ? "✓ Llegó" : "Llegada"}
+                    </button>
+                  )}
+                  {!hideDeparture && (
+                    <button
+                      onClick={() => handleCheckin(r.registration_id, "departure")}
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold ${departed ? "bg-green-700 text-white" : "border border-neutral-300"}`}
+                    >
+                      {departed ? "✓ Salió" : "Salida"}
+                    </button>
+                  )}
                 </div>
               </div>
               {expandedId === r.registration_id && (

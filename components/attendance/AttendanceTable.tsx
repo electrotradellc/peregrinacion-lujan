@@ -32,6 +32,7 @@ export function AttendanceTable({
   checkinsAtStop,
   supportVehicleRegistrationIds,
   isPresentationStop = false,
+  isFinalStop = false,
 }: {
   eventId: string;
   busId: string;
@@ -41,6 +42,7 @@ export function AttendanceTable({
   checkinsAtStop: AttendanceCheckinEntry[];
   supportVehicleRegistrationIds: string[];
   isPresentationStop?: boolean;
+  isFinalStop?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -48,6 +50,13 @@ export function AttendanceTable({
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "no-arrival" | "no-departure">("all");
   const [sort, setSort] = useState<"code" | "name">("code");
+
+  // En Luján (parada final) no tiene sentido "Salida" de ida ni "Llegada" de
+  // vuelta — ahí el viaje de ida termina y el de vuelta arranca. "Sigue en
+  // Micro" solo aplica en Ida (en Vuelta la única parada es Luján).
+  const hideArrival = isFinalStop && direction === "return";
+  const hideDeparture = isFinalStop && direction === "outbound";
+  const hideSupportVehicle = direction === "return";
 
   const findCheckin = (registrationId: string, eventType: "arrival" | "departure") =>
     checkinsAtStop.find((c) => c.registrationId === registrationId && c.eventType === eventType);
@@ -65,10 +74,10 @@ export function AttendanceTable({
           String(r.pilgrimCode ?? "").includes(needle),
       );
     }
-    if (!isPresentationStop && filter === "no-arrival") {
+    if (!isPresentationStop && !hideArrival && filter === "no-arrival") {
       rows = rows.filter((r) => !findCheckin(r.registrationId, "arrival"));
     }
-    if (!isPresentationStop && filter === "no-departure") {
+    if (!isPresentationStop && !hideDeparture && filter === "no-departure") {
       rows = rows.filter((r) => !findCheckin(r.registrationId, "departure"));
     }
     return [...rows].sort((a, b) => {
@@ -81,7 +90,7 @@ export function AttendanceTable({
       return a.lastName.localeCompare(b.lastName, "es") || a.firstName.localeCompare(b.firstName, "es");
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roster, checkinsAtStop, q, filter, sort, isPresentationStop]);
+  }, [roster, checkinsAtStop, q, filter, sort, isPresentationStop, hideArrival, hideDeparture]);
 
   function mark(registrationId: string, eventType: "arrival" | "departure" | "support_vehicle") {
     const key = `${registrationId}-${eventType}`;
@@ -127,8 +136,8 @@ export function AttendanceTable({
             className="rounded-md border border-neutral-300 px-3 py-1.5"
           >
             <option value="all">Todos</option>
-            <option value="no-arrival">No llegaron</option>
-            <option value="no-departure">No salieron</option>
+            {!hideArrival && <option value="no-arrival">No llegaron</option>}
+            {!hideDeparture && <option value="no-departure">No salieron</option>}
           </select>
         )}
         <select
@@ -152,9 +161,9 @@ export function AttendanceTable({
                 <th className="px-3 py-2">Presentación</th>
               ) : (
                 <>
-                  <th className="px-3 py-2">Llegada</th>
-                  <th className="px-3 py-2">Salida</th>
-                  <th className="px-3 py-2">Sigue en Micro</th>
+                  {!hideArrival && <th className="px-3 py-2">Llegada</th>}
+                  {!hideDeparture && <th className="px-3 py-2">Salida</th>}
+                  {!hideSupportVehicle && <th className="px-3 py-2">Sigue en Micro</th>}
                 </>
               )}
             </tr>
@@ -207,47 +216,53 @@ export function AttendanceTable({
                     </td>
                   ) : (
                     <>
-                      <td className="px-3 py-2">
-                        {arrival ? (
-                          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
-                            {formatTime(arrival.recordedAt)}
-                          </span>
-                        ) : (
-                          <button
-                            disabled={pending && pendingKey === `${r.registrationId}-arrival`}
-                            onClick={() => mark(r.registrationId, "arrival")}
-                            className="rounded-md border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 disabled:opacity-50"
-                          >
-                            Marcar llegada
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        {departure ? (
-                          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
-                            {formatTime(departure.recordedAt)}
-                          </span>
-                        ) : (
-                          <button
-                            disabled={pending && pendingKey === `${r.registrationId}-departure`}
-                            onClick={() => mark(r.registrationId, "departure")}
-                            className="rounded-md border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 disabled:opacity-50"
-                          >
-                            Marcar salida
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        {!inSupportVehicle && (
-                          <button
-                            disabled={pending && pendingKey === `${r.registrationId}-support_vehicle`}
-                            onClick={() => mark(r.registrationId, "support_vehicle")}
-                            className="rounded-md border border-amber-300 px-2 py-1 text-xs text-amber-800 hover:bg-amber-50 disabled:opacity-50"
-                          >
-                            Sigue en Micro
-                          </button>
-                        )}
-                      </td>
+                      {!hideArrival && (
+                        <td className="px-3 py-2">
+                          {arrival ? (
+                            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
+                              {formatTime(arrival.recordedAt)}
+                            </span>
+                          ) : (
+                            <button
+                              disabled={pending && pendingKey === `${r.registrationId}-arrival`}
+                              onClick={() => mark(r.registrationId, "arrival")}
+                              className="rounded-md border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 disabled:opacity-50"
+                            >
+                              Marcar llegada
+                            </button>
+                          )}
+                        </td>
+                      )}
+                      {!hideDeparture && (
+                        <td className="px-3 py-2">
+                          {departure ? (
+                            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
+                              {formatTime(departure.recordedAt)}
+                            </span>
+                          ) : (
+                            <button
+                              disabled={pending && pendingKey === `${r.registrationId}-departure`}
+                              onClick={() => mark(r.registrationId, "departure")}
+                              className="rounded-md border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 disabled:opacity-50"
+                            >
+                              Marcar salida
+                            </button>
+                          )}
+                        </td>
+                      )}
+                      {!hideSupportVehicle && (
+                        <td className="px-3 py-2">
+                          {!inSupportVehicle && (
+                            <button
+                              disabled={pending && pendingKey === `${r.registrationId}-support_vehicle`}
+                              onClick={() => mark(r.registrationId, "support_vehicle")}
+                              className="rounded-md border border-amber-300 px-2 py-1 text-xs text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+                            >
+                              Sigue en Micro
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </>
                   )}
                 </tr>
@@ -255,7 +270,14 @@ export function AttendanceTable({
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={isPresentationStop ? 4 : 6} className="px-3 py-6 text-center text-neutral-500">
+                <td
+                  colSpan={
+                    isPresentationStop
+                      ? 4
+                      : 3 + [!hideArrival, !hideDeparture, !hideSupportVehicle].filter(Boolean).length
+                  }
+                  className="px-3 py-6 text-center text-neutral-500"
+                >
                   Nadie coincide con estos filtros.
                 </td>
               </tr>

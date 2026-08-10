@@ -42,7 +42,14 @@ export default async function CaptainAsistenciaPage({
   }
 
   const direction: AssignmentDirection = sp.direction === "return" ? "return" : "outbound";
-  const stopId = sp.stopId && stops.some((s) => s.id === sp.stopId) ? sp.stopId : stops[0].id;
+  const lastStop = stops[stops.length - 1];
+  // En Vuelta solo se embarca en Luján (última parada) — no hay otras opciones.
+  const stopId =
+    direction === "return"
+      ? lastStop.id
+      : sp.stopId && stops.some((s) => s.id === sp.stopId)
+        ? sp.stopId
+        : stops[0].id;
   const busId = assignment.bus_id;
 
   const [{ data: rosterRaw }, { data: checkinsAtStop }, { data: supportCheckins }] = await Promise.all([
@@ -100,7 +107,7 @@ export default async function CaptainAsistenciaPage({
       </div>
 
       <div className="flex flex-wrap gap-2 text-sm">
-        {stops.map((s) => (
+        {(direction === "return" ? [lastStop] : stops).map((s) => (
           <Link
             key={s.id}
             href={linkTo({ stopId: s.id })}
@@ -124,6 +131,7 @@ export default async function CaptainAsistenciaPage({
         }))}
         supportVehicleRegistrationIds={(supportCheckins ?? []).map((c) => c.registration_id)}
         isPresentationStop={stops.find((s) => s.id === stopId)?.is_presentation_stop ?? false}
+        isFinalStop={stopId === lastStop.id}
       />
     </div>
   );

@@ -29,7 +29,14 @@ export default async function AsistenciaPage({
 
   const busId = sp.busId && buses.some((b) => b.id === sp.busId) ? sp.busId : buses[0].id;
   const direction: AssignmentDirection = sp.direction === "return" ? "return" : "outbound";
-  const stopId = sp.stopId && stops.some((s) => s.id === sp.stopId) ? sp.stopId : stops[0].id;
+  const lastStop = stops[stops.length - 1];
+  // En Vuelta solo se embarca en Luján (última parada) — no hay otras opciones.
+  const stopId =
+    direction === "return"
+      ? lastStop.id
+      : sp.stopId && stops.some((s) => s.id === sp.stopId)
+        ? sp.stopId
+        : stops[0].id;
 
   const [{ data: assignments }, { data: checkinsAtStop }, { data: supportCheckins }] = await Promise.all([
     supabase
@@ -98,7 +105,7 @@ export default async function AsistenciaPage({
       </div>
 
       <div className="flex flex-wrap gap-2 text-sm">
-        {stops.map((s) => (
+        {(direction === "return" ? [lastStop] : stops).map((s) => (
           <Link
             key={s.id}
             href={linkTo({ stopId: s.id })}
@@ -122,6 +129,7 @@ export default async function AsistenciaPage({
         }))}
         supportVehicleRegistrationIds={(supportCheckins ?? []).map((c) => c.registration_id)}
         isPresentationStop={stops.find((s) => s.id === stopId)?.is_presentation_stop ?? false}
+        isFinalStop={stopId === lastStop.id}
       />
     </div>
   );
