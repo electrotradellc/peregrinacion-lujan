@@ -151,45 +151,26 @@ export function RegistrationForm({
       </section>
 
       <section className={sectionClass}>
-        <h2 className="text-lg font-semibold">Obra social</h2>
+        <h2 className="text-lg font-semibold">Salida</h2>
+        <div>
+          <label className={labelClass}>¿Desde dónde salís caminando?</label>
+          <select className={inputClass} {...register("startingPointId")}>
+            <option value="">Elegí una opción</option>
+            {startingPoints.map((sp) => (
+              <option key={sp.id} value={sp.id}>
+                {sp.name} — presentarse {sp.presentation_time.slice(0, 5)}hs en{" "}
+                {sp.presentation_location}
+              </option>
+            ))}
+          </select>
+          {errors.startingPointId && (
+            <p className={errorClass}>{errors.startingPointId.message}</p>
+          )}
+        </div>
         <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            {...register("hasHealthInsurance", {
-              onChange: (e) => setHasHealthInsurance(e.target.checked),
-            })}
-          />
-          Tengo obra social
+          <input type="checkbox" {...register("returnsIndependently")} />
+          Vuelvo por mis propios medios (no necesito micro de vuelta)
         </label>
-        {hasHealthInsurance && (
-          <div className="space-y-4">
-            <div>
-              <label className={labelClass}>¿Cuál?</label>
-              <input className={inputClass} {...register("healthInsuranceProvider")} />
-              {errors.healthInsuranceProvider && (
-                <p className={errorClass}>{errors.healthInsuranceProvider.message}</p>
-              )}
-            </div>
-            <div>
-              <label className={labelClass}>Número de afiliado</label>
-              <input className={inputClass} {...register("healthInsuranceMemberNumber")} />
-              {errors.healthInsuranceMemberNumber && (
-                <p className={errorClass}>{errors.healthInsuranceMemberNumber.message}</p>
-              )}
-            </div>
-            <div>
-              <label className={labelClass}>Foto del carnet</label>
-              <input
-                className={inputClass}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={(e) => setInsuranceCardPhoto(e.target.files?.[0] ?? null)}
-              />
-              {fileErrors.insurance && <p className={errorClass}>{fileErrors.insurance}</p>}
-            </div>
-          </div>
-        )}
       </section>
 
       <section className={sectionClass}>
@@ -198,6 +179,48 @@ export function RegistrationForm({
           Marcá lo que corresponda. Esta información solo la ve el equipo organizador y el
           referente de tu micro, para poder asistirte mejor ante una emergencia.
         </p>
+
+        <div className="space-y-4 border-b border-neutral-200 pb-4">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              {...register("hasHealthInsurance", {
+                onChange: (e) => setHasHealthInsurance(e.target.checked),
+              })}
+            />
+            Tengo obra social
+          </label>
+          {hasHealthInsurance && (
+            <div className="space-y-4">
+              <div>
+                <label className={labelClass}>¿Cuál?</label>
+                <input className={inputClass} {...register("healthInsuranceProvider")} />
+                {errors.healthInsuranceProvider && (
+                  <p className={errorClass}>{errors.healthInsuranceProvider.message}</p>
+                )}
+              </div>
+              <div>
+                <label className={labelClass}>Número de afiliado</label>
+                <input className={inputClass} {...register("healthInsuranceMemberNumber")} />
+                {errors.healthInsuranceMemberNumber && (
+                  <p className={errorClass}>{errors.healthInsuranceMemberNumber.message}</p>
+                )}
+              </div>
+              <div>
+                <label className={labelClass}>Foto del carnet</label>
+                <input
+                  className={inputClass}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(e) => setInsuranceCardPhoto(e.target.files?.[0] ?? null)}
+                />
+                {fileErrors.insurance && <p className={errorClass}>{fileErrors.insurance}</p>}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="space-y-3">
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -269,7 +292,7 @@ export function RegistrationForm({
       </section>
 
       <section className={sectionClass}>
-        <h2 className="text-lg font-semibold">Contacto de emergencia y salida</h2>
+        <h2 className="text-lg font-semibold">Contacto de emergencia</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className={labelClass}>Nombre y apellido</label>
@@ -286,25 +309,6 @@ export function RegistrationForm({
             )}
           </div>
         </div>
-        <div>
-          <label className={labelClass}>¿Desde dónde salís caminando?</label>
-          <select className={inputClass} {...register("startingPointId")}>
-            <option value="">Elegí una opción</option>
-            {startingPoints.map((sp) => (
-              <option key={sp.id} value={sp.id}>
-                {sp.name} — presentarse {sp.presentation_time.slice(0, 5)}hs en{" "}
-                {sp.presentation_location}
-              </option>
-            ))}
-          </select>
-          {errors.startingPointId && (
-            <p className={errorClass}>{errors.startingPointId.message}</p>
-          )}
-        </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" {...register("returnsIndependently")} />
-          Vuelvo por mis propios medios (no necesito micro de vuelta)
-        </label>
       </section>
 
       <section className={sectionClass}>
