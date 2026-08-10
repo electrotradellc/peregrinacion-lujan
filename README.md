@@ -29,6 +29,7 @@ Copiá `.env.local.example` a `.env.local` y completá:
 | `NEXT_PUBLIC_SITE_URL` | La URL pública del deploy (`https://...vercel.app` o dominio propio) |
 | `MAGIC_LINK_SECRET` | Cualquier string largo y random |
 | `CRON_SECRET` | Cualquier string random — Vercel Cron lo manda automático si está seteado |
+| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | Casilla de Gmail de la parroquia desde la que salen los emails de inscripción/confirmación (`lib/email/`). La contraseña es un [app password](https://myaccount.google.com/apppasswords), no la contraseña normal de la cuenta |
 | `MP_ACCESS_TOKEN` / `MP_WEBHOOK_SECRET` | No hacen falta con el flujo actual (pago manual) — solo si en algún momento se reactiva Mercado Pago |
 
 En Vercel, configurá las mismas variables en Project Settings → Environment Variables.
@@ -105,9 +106,6 @@ ofrecer Mercado Pago como opción adicional, es cuestión de volver a invocar
 
 ## 7. Lo que falta para producción
 
-- **Envío de emails reales** (hoy el link mágico de `/mi-inscripcion/[id]` solo se muestra
-  en pantalla al terminar de inscribirse, no se manda por mail). Integrar un proveedor tipo
-  Resend.
 - Cargar el logo/colores definitivos si cambian respecto a los actuales (paleta en
   `app/globals.css`, íconos en `public/icons/` y `app/icon.png` generados desde
   `Documents/Logos Parroquia/Logo Parroquia.jpeg`).
