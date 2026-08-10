@@ -21,6 +21,7 @@ export async function createCaptainAction(formData: FormData) {
   // ninguna contraseña temporal a mano.
   const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
     data: { full_name: fullName, whatsapp_phone: whatsappPhone, role },
+    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/set-password`,
   });
 
   if (error || !data.user) {

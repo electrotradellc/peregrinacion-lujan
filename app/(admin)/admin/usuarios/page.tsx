@@ -91,7 +91,7 @@ export default async function UsuariosPage() {
           </div>
           <EventBusPicker events={events ?? []} buses={buses ?? []} />
           <div className="sm:col-span-2">
-            <button className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-semibold text-white">
+            <button className="rounded-md bg-brand-ink px-4 py-2 text-sm font-semibold text-white">
               Crear usuario e invitar por email
             </button>
           </div>

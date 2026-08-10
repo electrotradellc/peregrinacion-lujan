@@ -34,6 +34,7 @@ export const registrationFieldsSchema = z
 
     // obra social
     hasHealthInsurance: z.boolean(),
+    healthInsuranceProvider: z.string().trim().optional(),
     healthInsuranceMemberNumber: z.string().trim().optional(),
 
     // contacto de emergencia
@@ -42,6 +43,7 @@ export const registrationFieldsSchema = z
 
     // punto de partida
     startingPointId: z.uuid("Elegí desde dónde salís caminando"),
+    returnsIndependently: z.boolean(),
 
     // información médica
     hasAllergies: z.boolean(),
@@ -61,6 +63,13 @@ export const registrationFieldsSchema = z
     termsAccepted: z.boolean(),
   })
   .superRefine((data, ctx) => {
+    if (data.hasHealthInsurance && !data.healthInsuranceProvider) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["healthInsuranceProvider"],
+        message: "Indicá cuál es tu obra social",
+      });
+    }
     if (data.hasHealthInsurance && !data.healthInsuranceMemberNumber) {
       ctx.addIssue({
         code: "custom",

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import ReactMarkdown from "react-markdown";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyMagicToken } from "@/lib/magicLink";
 import type {
@@ -114,6 +115,38 @@ export default async function MiInscripcionPage({
           )
         )}
       </div>
+
+      {registration.status === "pending_payment" && (
+        <div className="mt-4 rounded-lg border border-brand-ink/30 bg-brand/15 p-4">
+          <h2 className="font-semibold">Cómo pagar</h2>
+          <p className="mt-1 text-sm text-neutral-700">
+            Monto a abonar: <strong>${event?.registration_price_ars.toLocaleString("es-AR")}</strong>
+          </p>
+          {event?.payment_alias && (
+            <p className="mt-1 text-sm text-neutral-700">
+              Alias para transferencia: <strong>{event.payment_alias}</strong>
+            </p>
+          )}
+          {event?.payment_instructions && (
+            <div className="prose prose-sm mt-2 max-w-none text-neutral-700">
+              <ReactMarkdown>{event.payment_instructions}</ReactMarkdown>
+            </div>
+          )}
+          {event?.contact_email && (
+            <p className="mt-2 text-sm text-neutral-700">
+              Después de pagar, mandanos el comprobante a{" "}
+              <a href={`mailto:${event.contact_email}`} className="underline">
+                {event.contact_email}
+              </a>
+              .
+            </p>
+          )}
+          <p className="mt-3 text-xs text-neutral-600">
+            Tu inscripción queda pendiente hasta que confirmemos el pago — te va a cambiar de
+            estado en esta misma página cuando lo hagamos.
+          </p>
+        </div>
+      )}
 
       {registration.status === "confirmed" && (
         <div className="mt-4 flex flex-col gap-3">

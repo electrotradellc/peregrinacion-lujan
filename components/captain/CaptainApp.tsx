@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, saveRoster, recordCheckin, type RosterEntry } from "@/lib/offline/db";
@@ -120,6 +121,9 @@ export function CaptainApp({
               : "Todo sincronizado"}
           </span>
         </div>
+        <Link href={`/capitan/${eventId}/asistencia`} className="mt-2 block text-xs text-neutral-500 underline">
+          Ver planilla de asistencia (con señal)
+        </Link>
         <div className="mt-2 flex items-center justify-between text-xs text-neutral-500">
           <span>
             Listado sincronizado:{" "}
@@ -146,13 +150,13 @@ export function CaptainApp({
       <div className="flex gap-2 text-sm">
         <button
           onClick={() => setDirection("outbound")}
-          className={`flex-1 rounded-md px-3 py-2 ${direction === "outbound" ? "bg-neutral-900 text-white" : "border border-neutral-300"}`}
+          className={`flex-1 rounded-md px-3 py-2 ${direction === "outbound" ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
         >
           Ida
         </button>
         <button
           onClick={() => setDirection("return")}
-          className={`flex-1 rounded-md px-3 py-2 ${direction === "return" ? "bg-neutral-900 text-white" : "border border-neutral-300"}`}
+          className={`flex-1 rounded-md px-3 py-2 ${direction === "return" ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
         >
           Vuelta
         </button>

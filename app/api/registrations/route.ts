@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createRegistrationPreference } from "@/lib/mercadopago/createPreference";
+import { magicLinkPath } from "@/lib/magicLink";
+import { sendRegistrationPendingEmail } from "@/lib/email/registrationEmails";
 import {
   registrationFieldsSchema,
   validatePhotoFile,
 } from "@/lib/validation/registrationSchema";
-import type { EventRow } from "@/lib/types";
+import type { EventRow, RegistrationRow, StartingPointRow } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -29,6 +30,7 @@ export async function POST(request: Request) {
     hasHeartCondition: raw.hasHeartCondition === "true",
     hasOtherCondition: raw.hasOtherCondition === "true",
     takesMedication: raw.takesMedication === "true",
+    returnsIndependently: raw.returnsIndependently === "true",
     termsAccepted: raw.termsAccepted === "true",
   });
 
@@ -111,7 +113,9 @@ export async function POST(request: Request) {
     }
   }
 
-  const { error: insertError } = await supabase.from("registrations").insert({
+  const { data: insertedRegistration, error: insertError } = await supabase
+    .from("registrations")
+    .insert({
     id: registrationId,
     event_id: data.eventId,
     first_name: data.firstName,
@@ -122,6 +126,7 @@ export async function POST(request: Request) {
     birth_date: data.birthDate,
     dni_photo_path: dniPhotoPath,
     has_health_insurance: data.hasHealthInsurance,
+    health_insurance_provider: data.hasHealthInsurance ? data.healthInsuranceProvider : null,
     health_insurance_member_number: data.hasHealthInsurance
       ? data.healthInsuranceMemberNumber
       : null,
@@ -129,6 +134,7 @@ export async function POST(request: Request) {
     emergency_contact_name: data.emergencyContactName,
     emergency_contact_phone: data.emergencyContactPhone,
     starting_point_id: data.startingPointId,
+    returns_independently: data.returnsIndependently,
     has_allergies: data.hasAllergies,
     allergies_detail: data.hasAllergies ? data.allergiesDetail : null,
     has_celiac: data.hasCeliac,
@@ -143,10 +149,12 @@ export async function POST(request: Request) {
     terms_accepted_at: new Date().toISOString(),
     terms_version: data.termsVersion,
     status: "pending_payment",
-  });
+    })
+    .select()
+    .single<RegistrationRow>();
 
-  if (insertError) {
-    const isDuplicateDni = insertError.code === "23505";
+  if (insertError || !insertedRegistration) {
+    const isDuplicateDni = insertError?.code === "23505";
     return NextResponse.json(
       {
         error: isDuplicateDni
@@ -157,29 +165,23 @@ export async function POST(request: Request) {
     );
   }
 
+  // El mail de confirmación es "mejor esfuerzo": si falla (ej. credenciales
+  // de Gmail mal cargadas) la inscripción ya quedó guardada igual, no
+  // bloqueamos al peregrino por un problema de envío de mail.
   try {
-    const { preferenceId, initPoint } = await createRegistrationPreference({
-      registrationId,
-      eventName: event.name,
-      amount: event.registration_price_ars,
-      payerEmail: data.email,
-    });
-
-    await supabase.from("payments").insert({
-      registration_id: registrationId,
-      mp_preference_id: preferenceId,
-      status: "created",
-      amount: event.registration_price_ars,
-    });
-
-    return NextResponse.json({ initPoint });
-  } catch {
-    return NextResponse.json(
-      {
-        error:
-          "La inscripción se guardó pero no pudimos iniciar el pago. Contactate con la organización.",
-      },
-      { status: 502 },
-    );
+    const { data: startingPoint } = await supabase
+      .from("starting_points")
+      .select("*")
+      .eq("id", data.startingPointId)
+      .single<StartingPointRow>();
+    await sendRegistrationPendingEmail(insertedRegistration, event, startingPoint ?? null);
+  } catch (err) {
+    console.error("No se pudo enviar el email de inscripción pendiente:", err);
   }
+
+  // El cobro es manual (alias / efectivo en Secretaría, confirmado por el
+  // admin al recibir el comprobante) — no hay redirect a una pasarela de
+  // pago. El link mágico es adonde el peregrino ve el estado y las
+  // instrucciones de pago.
+  return NextResponse.json({ redirectTo: magicLinkPath(registrationId) });
 }

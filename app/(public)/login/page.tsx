@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useActionState } from "react";
 import { signInAction } from "./actions";
 
@@ -8,6 +9,7 @@ export default function LoginPage() {
 
   return (
     <main className="mx-auto flex min-h-[70vh] max-w-sm flex-col justify-center px-4 py-16">
+      <Image src="/logo.png" alt="Parroquia San Isidro Labrador" width={424} height={186} className="mb-6 h-auto w-48" priority />
       <h1 className="mb-6 text-2xl font-semibold">Ingresar</h1>
       <form action={formAction} className="space-y-4">
         <div>
@@ -32,7 +34,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-md bg-neutral-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          className="w-full rounded-md bg-brand-ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-ink-hover disabled:opacity-50"
         >
           {pending ? "Ingresando..." : "Ingresar"}
         </button>

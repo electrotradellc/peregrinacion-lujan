@@ -1,9 +1,17 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import type { BusRow, StopRow, AttendanceCheckinRow } from "@/lib/types";
-import { AttendanceDashboard } from "@/components/admin/AttendanceDashboard";
+import type { BusRow, StopRow, RegistrationRow, BusAssignmentRow, AssignmentDirection } from "@/lib/types";
+import { AttendanceTable } from "@/components/attendance/AttendanceTable";
 
-export default async function AsistenciaPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AsistenciaPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ busId?: string; direction?: string; stopId?: string }>;
+}) {
   const { id } = await params;
+  const sp = await searchParams;
   const supabase = await createClient();
 
   const [{ data: buses }, { data: stops }] = await Promise.all([
@@ -11,17 +19,110 @@ export default async function AsistenciaPage({ params }: { params: Promise<{ id:
     supabase.from("stops").select("*").eq("event_id", id).order("sequence_order").returns<StopRow[]>(),
   ]);
 
-  const busIds = (buses ?? []).map((b) => b.id);
-  const { data: checkins } = await supabase
-    .from("attendance_checkins")
-    .select("*")
-    .in("bus_id", busIds.length ? busIds : ["00000000-0000-0000-0000-000000000000"])
-    .returns<AttendanceCheckinRow[]>();
+  if (!buses?.length || !stops?.length) {
+    return (
+      <p className="text-sm text-neutral-500">
+        Configurá al menos un micro y una parada antes de tomar asistencia.
+      </p>
+    );
+  }
+
+  const busId = sp.busId && buses.some((b) => b.id === sp.busId) ? sp.busId : buses[0].id;
+  const direction: AssignmentDirection = sp.direction === "return" ? "return" : "outbound";
+  const stopId = sp.stopId && stops.some((s) => s.id === sp.stopId) ? sp.stopId : stops[0].id;
+
+  const [{ data: assignments }, { data: checkinsAtStop }, { data: supportCheckins }] = await Promise.all([
+    supabase
+      .from("bus_assignments")
+      .select("*, registrations!inner(*)")
+      .eq("bus_id", busId)
+      .eq("direction", direction)
+      .eq("registrations.status", "confirmed")
+      .returns<(BusAssignmentRow & { registrations: RegistrationRow })[]>(),
+    supabase
+      .from("attendance_checkins")
+      .select("*")
+      .eq("bus_id", busId)
+      .eq("direction", direction)
+      .eq("stop_id", stopId),
+    supabase
+      .from("attendance_checkins")
+      .select("registration_id")
+      .eq("bus_id", busId)
+      .eq("direction", direction)
+      .eq("event_type", "support_vehicle"),
+  ]);
+
+  const roster = (assignments ?? []).map((a) => ({
+    registrationId: a.registrations.id,
+    pilgrimCode: a.registrations.pilgrim_code,
+    lastName: a.registrations.last_name,
+    firstName: a.registrations.first_name,
+    phone: a.registrations.phone,
+  }));
+
+  const linkTo = (overrides: Record<string, string>) => {
+    const params = new URLSearchParams({ busId, direction, stopId, ...overrides });
+    return `/admin/eventos/${id}/asistencia?${params.toString()}`;
+  };
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Asistencia en vivo</h1>
-      <AttendanceDashboard buses={buses ?? []} stops={stops ?? []} initialCheckins={checkins ?? []} />
+      <h1 className="text-xl font-semibold">Asistencia</h1>
+
+      <div className="flex flex-wrap gap-2 text-sm">
+        {buses.map((b) => (
+          <Link
+            key={b.id}
+            href={linkTo({ busId: b.id })}
+            className={`rounded-md px-3 py-1.5 ${b.id === busId ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
+          >
+            Micro {b.bus_number}
+          </Link>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2 text-sm">
+        <Link
+          href={linkTo({ direction: "outbound" })}
+          className={`rounded-md px-3 py-1.5 ${direction === "outbound" ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
+        >
+          Ida
+        </Link>
+        <Link
+          href={linkTo({ direction: "return" })}
+          className={`rounded-md px-3 py-1.5 ${direction === "return" ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
+        >
+          Vuelta
+        </Link>
+      </div>
+
+      <div className="flex flex-wrap gap-2 text-sm">
+        {stops.map((s) => (
+          <Link
+            key={s.id}
+            href={linkTo({ stopId: s.id })}
+            className={`rounded-md px-3 py-1.5 ${s.id === stopId ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
+          >
+            {s.sequence_order}. {s.name}
+          </Link>
+        ))}
+      </div>
+
+      <AttendanceTable
+        eventId={id}
+        busId={busId}
+        direction={direction}
+        stopId={stopId}
+        roster={roster}
+        checkinsAtStop={(checkinsAtStop ?? []).map((c) => ({
+          registrationId: c.registration_id,
+          eventType: c.event_type,
+          recordedAt: c.recorded_at,
+        }))}
+        supportVehicleRegistrationIds={(supportCheckins ?? []).map((c) => c.registration_id)}
+        isPresentationStop={stops.find((s) => s.id === stopId)?.is_presentation_stop ?? false}
+      />
     </div>
   );
 }

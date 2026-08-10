@@ -4,10 +4,44 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { AssignmentDirection } from "@/lib/types";
 
-function revalidateAssignment(eventId: string, direction: AssignmentDirection) {
-  revalidatePath(
-    `/admin/eventos/${eventId}/asignacion-${direction === "outbound" ? "ida" : "vuelta"}`,
-  );
+// Busca el próximo número libre dentro de la "centena" del micro (micro 1 ->
+// 101..capacidad, micro 2 -> 201..capacidad, etc.) y se lo asigna a esta
+// inscripción. Si ya tenía un código de otro micro, queda liberado solo
+// (nadie más lo tenía, era 1 a 1 con esta fila).
+async function assignPilgrimCode(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  registrationId: string,
+  busId: string,
+) {
+  const { data: bus } = await supabase
+    .from("buses")
+    .select("bus_number, capacity")
+    .eq("id", busId)
+    .single();
+  if (!bus) return;
+
+  const { data: assignedInBus } = await supabase
+    .from("bus_assignments")
+    .select("registration_id")
+    .eq("bus_id", busId)
+    .eq("direction", "outbound");
+
+  const registrationIds = (assignedInBus ?? [])
+    .map((a) => a.registration_id)
+    .filter((id) => id !== registrationId);
+
+  const { data: existingCodes } = registrationIds.length
+    ? await supabase.from("registrations").select("pilgrim_code").in("id", registrationIds)
+    : { data: [] as { pilgrim_code: number | null }[] };
+
+  const used = new Set((existingCodes ?? []).map((r) => r.pilgrim_code).filter(Boolean));
+  let slot = 1;
+  while (used.has(bus.bus_number * 100 + slot) && slot <= bus.capacity) slot++;
+
+  await supabase
+    .from("registrations")
+    .update({ pilgrim_code: bus.bus_number * 100 + slot })
+    .eq("id", registrationId);
 }
 
 export async function assignToBusAction(
@@ -29,7 +63,10 @@ export async function assignToBusAction(
       .delete()
       .eq("registration_id", registrationId)
       .eq("direction", direction);
-    revalidateAssignment(eventId, direction);
+    if (direction === "outbound") {
+      await supabase.from("registrations").update({ pilgrim_code: null }).eq("id", registrationId);
+    }
+    revalidatePath(`/admin/eventos/${eventId}/inscripciones`);
     return;
   }
 
@@ -44,32 +81,10 @@ export async function assignToBusAction(
   );
 
   if (error) throw new Error(error.message);
-  revalidateAssignment(eventId, direction);
-}
 
-export async function copyOutboundToReturnAction(eventId: string, registrationIds: string[]) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: outbound } = await supabase
-    .from("bus_assignments")
-    .select("registration_id, bus_id")
-    .eq("direction", "outbound")
-    .in("registration_id", registrationIds);
-
-  for (const a of outbound ?? []) {
-    await supabase.from("bus_assignments").upsert(
-      {
-        registration_id: a.registration_id,
-        bus_id: a.bus_id,
-        direction: "return",
-        assigned_by: user?.id,
-      },
-      { onConflict: "registration_id,direction" },
-    );
+  if (direction === "outbound") {
+    await assignPilgrimCode(supabase, registrationId, busId);
   }
 
-  revalidateAssignment(eventId, "return");
+  revalidatePath(`/admin/eventos/${eventId}/inscripciones`);
 }

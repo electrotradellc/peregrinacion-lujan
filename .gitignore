@@ -43,3 +43,6 @@ next-env.d.ts
 # service worker generado por serwist en cada build (ver next.config.ts)
 /public/sw.js
 /public/sw.js.map
+
+# estado local de `supabase link` (project ref, pooler url) — se regenera solo
+/supabase/.temp/

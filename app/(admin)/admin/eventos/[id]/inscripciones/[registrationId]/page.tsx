@@ -1,12 +1,19 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { RegistrationRow, StartingPointRow, PaymentRow } from "@/lib/types";
+import type { RegistrationRow, StartingPointRow, EventAuditLogRow, ProfileRow } from "@/lib/types";
 import { updateRegistrationAction, setRegistrationStatusAction } from "./actions";
-import { VerifyPaymentButton } from "@/components/admin/VerifyPaymentButton";
+import { DeleteRegistrationButton } from "@/components/admin/DeleteRegistrationButton";
 
 const inputClass = "mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm";
 const cardClass = "rounded-lg border border-neutral-200 bg-white p-4 space-y-4";
 const checkboxRow = "flex items-center gap-2 text-sm";
+
+const auditActionLabel: Record<string, string> = {
+  registration_status_set_confirmed: "Marcada como pagada",
+  registration_status_set_cancelled: "Inscripción cancelada",
+  registration_status_set_pending_payment: "Vuelta a pendiente de pago",
+  registration_no_show: "No se presentó en la Parroquia",
+};
 
 export default async function RegistrationDetailPage({
   params,
@@ -16,7 +23,7 @@ export default async function RegistrationDetailPage({
   const { id, registrationId } = await params;
   const supabase = await createClient();
 
-  const [{ data: registration }, { data: startingPoints }, { data: payments }] = await Promise.all([
+  const [{ data: registration }, { data: startingPoints }, { data: auditLog }] = await Promise.all([
     supabase
       .from("registrations")
       .select("*")
@@ -24,14 +31,22 @@ export default async function RegistrationDetailPage({
       .single<RegistrationRow>(),
     supabase.from("starting_points").select("*").eq("event_id", id).returns<StartingPointRow[]>(),
     supabase
-      .from("payments")
+      .from("event_audit_log")
       .select("*")
-      .eq("registration_id", registrationId)
+      .eq("entity_table", "registrations")
+      .eq("entity_id", registrationId)
       .order("created_at", { ascending: false })
-      .returns<PaymentRow[]>(),
+      .returns<EventAuditLogRow[]>(),
   ]);
 
   if (!registration) notFound();
+
+  const actorIds = [...new Set((auditLog ?? []).map((a) => a.actor_id).filter(Boolean))] as string[];
+  const { data: actors } = actorIds.length
+    ? await supabase.from("profiles").select("*").in("id", actorIds).returns<ProfileRow[]>()
+    : { data: [] as ProfileRow[] };
+  const actorName = (actorId: string | null) =>
+    actors?.find((a) => a.id === actorId)?.full_name ?? "—";
 
   return (
     <div className="space-y-6">
@@ -40,13 +55,22 @@ export default async function RegistrationDetailPage({
           <h1 className="text-xl font-semibold">
             {registration.last_name}, {registration.first_name}
           </h1>
-          <p className="text-sm text-neutral-500">DNI {registration.dni} · Estado: {registration.status}</p>
+          <p className="text-sm text-neutral-500">
+            DNI {registration.dni} · Estado: {registration.status} · Inscripto el{" "}
+            {new Date(registration.created_at).toLocaleString("es-AR", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </p>
         </div>
         <div className="flex gap-2">
           {registration.status === "pending_payment" && (
             <form action={setRegistrationStatusAction.bind(null, id, registrationId, "confirmed")}>
               <button className="rounded-md bg-green-700 px-3 py-1.5 text-sm text-white">
-                Confirmar manualmente
+                Marcar como pagada
               </button>
             </form>
           )}
@@ -56,6 +80,13 @@ export default async function RegistrationDetailPage({
                 Cancelar inscripción
               </button>
             </form>
+          )}
+          {registration.status === "cancelled" && (
+            <DeleteRegistrationButton
+              eventId={id}
+              registrationId={registrationId}
+              label="Eliminar definitivamente"
+            />
           )}
         </div>
       </div>
@@ -83,19 +114,18 @@ export default async function RegistrationDetailPage({
       </section>
 
       <section className={cardClass}>
-        <h2 className="font-semibold">Pagos</h2>
+        <h2 className="font-semibold">Historial</h2>
         <ul className="space-y-1 text-sm">
-          {(payments ?? []).map((p) => (
-            <li key={p.id}>
-              {p.status} — ${p.amount ?? "-"} — {new Date(p.created_at).toLocaleString("es-AR")}
-              {p.mp_payment_id && <span className="text-neutral-500"> (MP #{p.mp_payment_id})</span>}
+          {(auditLog ?? []).map((entry) => (
+            <li key={entry.id}>
+              {auditActionLabel[entry.action] ?? entry.action} — {actorName(entry.actor_id)} —{" "}
+              {new Date(entry.created_at).toLocaleString("es-AR")}
             </li>
           ))}
-          {(payments ?? []).length === 0 && <li className="text-neutral-500">Sin pagos registrados.</li>}
+          {(auditLog ?? []).length === 0 && (
+            <li className="text-neutral-500">Todavía no hay cambios registrados.</li>
+          )}
         </ul>
-        {registration.status === "pending_payment" && (
-          <VerifyPaymentButton registrationId={registrationId} />
-        )}
       </section>
 
       <form
@@ -147,12 +177,26 @@ export default async function RegistrationDetailPage({
             className={inputClass}
           />
         </div>
+        <label className={checkboxRow}>
+          <input
+            type="checkbox"
+            name="returns_independently"
+            defaultChecked={registration.returns_independently}
+          />
+          Vuelve por sus propios medios (no necesita micro de vuelta)
+        </label>
 
         <h3 className="pt-2 font-medium">Obra social</h3>
         <label className={checkboxRow}>
           <input type="checkbox" name="has_health_insurance" defaultChecked={registration.has_health_insurance} />
           Tiene obra social
         </label>
+        <input
+          name="health_insurance_provider"
+          defaultValue={registration.health_insurance_provider ?? ""}
+          placeholder="¿Cuál? (ej. OSDE, Swiss Medical...)"
+          className={inputClass}
+        />
         <input
           name="health_insurance_member_number"
           defaultValue={registration.health_insurance_member_number ?? ""}
@@ -234,7 +278,7 @@ export default async function RegistrationDetailPage({
 
         <button
           type="submit"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-semibold text-white"
+          className="rounded-md bg-brand-ink px-4 py-2 text-sm font-semibold text-white"
         >
           Guardar cambios
         </button>

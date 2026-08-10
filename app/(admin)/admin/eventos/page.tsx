@@ -89,7 +89,7 @@ export default async function EventosPage() {
           <div className="sm:col-span-3">
             <button
               type="submit"
-              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-semibold text-white"
+              className="rounded-md bg-brand-ink px-4 py-2 text-sm font-semibold text-white"
             >
               Crear evento
             </button>

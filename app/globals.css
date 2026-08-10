@@ -4,11 +4,21 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Paleta de Parroquia San Isidro Labrador: celeste del logo + un azul
+     más oscuro derivado del mismo tono para botones/acciones (buen
+     contraste con texto blanco). Ajustar --brand-ink si más adelante se
+     define un color exacto a partir del logo (ej. el marrón del isotipo). */
+  --brand: #bdd5ed;
+  --brand-ink: #3d5a80;
+  --brand-ink-hover: #2e4560;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-ink-hover: var(--brand-ink-hover);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

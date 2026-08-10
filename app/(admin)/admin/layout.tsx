@@ -18,7 +18,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </Link>
           </nav>
           <div className="flex items-center gap-3 text-sm text-neutral-600">
-            <span>{session.profile.full_name}</span>
+            <Link href="/admin/perfil" className="hover:text-neutral-900">
+              {session.profile.full_name}
+            </Link>
             <SignOutButton />
           </div>
         </div>

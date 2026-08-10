@@ -29,10 +29,17 @@ export function RegistrationForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Estado propio (no `watch()`) para decidir si se muestran los campos
+  // condicionales — más robusto entre navegadores que depender de la
+  // resuscripción de react-hook-form solo para mostrar/ocultar UI.
+  const [hasHealthInsurance, setHasHealthInsurance] = useState(false);
+  const [hasAllergies, setHasAllergies] = useState(false);
+  const [hasOtherCondition, setHasOtherCondition] = useState(false);
+  const [takesMedication, setTakesMedication] = useState(false);
+
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm<RegistrationFields>({
     resolver: zodResolver(registrationFieldsSchema),
@@ -47,15 +54,11 @@ export function RegistrationForm({
       hasHeartCondition: false,
       hasOtherCondition: false,
       takesMedication: false,
+      returnsIndependently: false,
       termsVersion: event.terms_version,
       termsAccepted: false,
     },
   });
-
-  const hasHealthInsurance = watch("hasHealthInsurance");
-  const hasAllergies = watch("hasAllergies");
-  const hasOtherCondition = watch("hasOtherCondition");
-  const takesMedication = watch("takesMedication");
 
   const onSubmit = async (data: RegistrationFields) => {
     setSubmitError(null);
@@ -87,7 +90,7 @@ export function RegistrationForm({
         setSubmitting(false);
         return;
       }
-      window.location.href = json.initPoint;
+      window.location.assign(json.redirectTo);
     } catch {
       setSubmitError("No pudimos conectar con el servidor. Revisá tu conexión e intentá de nuevo.");
       setSubmitting(false);
@@ -136,8 +139,13 @@ export function RegistrationForm({
             className={inputClass}
             type="file"
             accept="image/*"
+            capture="environment"
             onChange={(e) => setDniPhoto(e.target.files?.[0] ?? null)}
           />
+          <p className="mt-1 text-xs text-neutral-500">
+            En el celular esto abre la cámara directamente — también podés elegir una foto ya
+            existente.
+          </p>
           {fileErrors.dni && <p className={errorClass}>{fileErrors.dni}</p>}
         </div>
       </section>
@@ -145,11 +153,23 @@ export function RegistrationForm({
       <section className={sectionClass}>
         <h2 className="text-lg font-semibold">Obra social</h2>
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" {...register("hasHealthInsurance")} />
+          <input
+            type="checkbox"
+            {...register("hasHealthInsurance", {
+              onChange: (e) => setHasHealthInsurance(e.target.checked),
+            })}
+          />
           Tengo obra social
         </label>
         {hasHealthInsurance && (
           <div className="space-y-4">
+            <div>
+              <label className={labelClass}>¿Cuál?</label>
+              <input className={inputClass} {...register("healthInsuranceProvider")} />
+              {errors.healthInsuranceProvider && (
+                <p className={errorClass}>{errors.healthInsuranceProvider.message}</p>
+              )}
+            </div>
             <div>
               <label className={labelClass}>Número de afiliado</label>
               <input className={inputClass} {...register("healthInsuranceMemberNumber")} />
@@ -163,6 +183,7 @@ export function RegistrationForm({
                 className={inputClass}
                 type="file"
                 accept="image/*"
+                capture="environment"
                 onChange={(e) => setInsuranceCardPhoto(e.target.files?.[0] ?? null)}
               />
               {fileErrors.insurance && <p className={errorClass}>{fileErrors.insurance}</p>}
@@ -179,7 +200,10 @@ export function RegistrationForm({
         </p>
         <div className="space-y-3">
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" {...register("hasAllergies")} />
+            <input
+              type="checkbox"
+              {...register("hasAllergies", { onChange: (e) => setHasAllergies(e.target.checked) })}
+            />
             Alergias
           </label>
           {hasAllergies && (
@@ -208,7 +232,13 @@ export function RegistrationForm({
             <input type="checkbox" {...register("hasHeartCondition")} /> Enfermedad cardíaca
           </label>
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" {...register("hasOtherCondition")} /> Otra
+            <input
+              type="checkbox"
+              {...register("hasOtherCondition", {
+                onChange: (e) => setHasOtherCondition(e.target.checked),
+              })}
+            />{" "}
+            Otra
           </label>
           {hasOtherCondition && (
             <div>
@@ -220,7 +250,11 @@ export function RegistrationForm({
             </div>
           )}
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" {...register("takesMedication")} /> Toma medicación
+            <input
+              type="checkbox"
+              {...register("takesMedication", { onChange: (e) => setTakesMedication(e.target.checked) })}
+            />{" "}
+            Toma medicación
           </label>
           {takesMedication && (
             <div>
@@ -267,6 +301,10 @@ export function RegistrationForm({
             <p className={errorClass}>{errors.startingPointId.message}</p>
           )}
         </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" {...register("returnsIndependently")} />
+          Vuelvo por mis propios medios (no necesito micro de vuelta)
+        </label>
       </section>
 
       <section className={sectionClass}>
@@ -288,11 +326,11 @@ export function RegistrationForm({
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-md bg-neutral-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+        className="w-full rounded-md bg-brand-ink px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
       >
         {submitting
           ? "Procesando..."
-          : `Continuar al pago — $${event.registration_price_ars.toLocaleString("es-AR")}`}
+          : `Enviar inscripción — $${event.registration_price_ars.toLocaleString("es-AR")}`}
       </button>
     </form>
   );

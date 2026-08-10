@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "cross-env NODE_OPTIONS=--use-system-ca next dev --webpack",
     "build": "next build --webpack",
-    "start": "next start",
+    "start": "cross-env NODE_OPTIONS=--use-system-ca next start",
     "lint": "eslint"
   },
   "dependencies": {
@@ -17,6 +17,7 @@
     "dexie-react-hooks": "^4.4.0",
     "mercadopago": "^3.3.0",
     "next": "16.3.0",
+    "nodemailer": "^9.0.5",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.85.0",
@@ -29,10 +30,13 @@
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.20",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
+    "sharp": "^0.35.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

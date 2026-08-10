@@ -19,6 +19,9 @@ export async function updateEventSettingsAction(eventId: string, formData: FormD
       status: String(formData.get("status")),
       pending_payment_expiry_days: Number(formData.get("pending_payment_expiry_days")),
       whatsapp_group_invite_url: String(formData.get("whatsapp_group_invite_url") || "") || null,
+      payment_alias: String(formData.get("payment_alias") || "") || null,
+      contact_email: String(formData.get("contact_email") || "") || null,
+      payment_instructions: String(formData.get("payment_instructions") || ""),
       walking_recommendations: String(formData.get("walking_recommendations") || ""),
       terms_and_conditions: String(formData.get("terms_and_conditions") || ""),
       terms_version: String(formData.get("terms_version") || "1"),
@@ -73,6 +76,7 @@ export async function addStopAction(eventId: string, formData: FormData) {
     sequence_order: Number(formData.get("sequence_order")),
     name: String(formData.get("name")),
     maps_url: String(formData.get("maps_url") || "") || null,
+    is_presentation_stop: formData.get("is_presentation_stop") === "on",
   });
   if (error) throw new Error(error.message);
   revalidateConfig(eventId);

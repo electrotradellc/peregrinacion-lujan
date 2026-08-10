@@ -114,6 +114,40 @@ export default async function EventConfigPage({
                 className={inputClass}
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium">Alias para transferencia</label>
+              <input
+                name="payment_alias"
+                defaultValue={event.payment_alias ?? ""}
+                placeholder="peregrinacion.sil.mp"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Email de contacto</label>
+              <input
+                name="contact_email"
+                type="email"
+                defaultValue={event.contact_email ?? ""}
+                placeholder="lujanpsil@gmail.com"
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-neutral-500">
+                Adonde se pide el comprobante de pago y el reply-to de los emails automáticos.
+              </p>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium">
+              Instrucciones de pago (Markdown) — efectivo en Secretaría, a qué mail mandar el
+              comprobante, horarios, etc.
+            </label>
+            <textarea
+              name="payment_instructions"
+              defaultValue={event.payment_instructions ?? ""}
+              rows={5}
+              className={inputClass}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium">
@@ -151,7 +185,7 @@ export default async function EventConfigPage({
           </div>
           <button
             type="submit"
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-semibold text-white"
+            className="rounded-md bg-brand-ink px-4 py-2 text-sm font-semibold text-white"
           >
             Guardar
           </button>
@@ -245,6 +279,11 @@ export default async function EventConfigPage({
             <li key={stop.id} className="flex items-center justify-between py-2 text-sm">
               <span>
                 {stop.sequence_order}. <strong>{stop.name}</strong>
+                {stop.is_presentation_stop && (
+                  <span className="ml-1 rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-600">
+                    presentación
+                  </span>
+                )}
               </span>
               <form action={deleteStopAction.bind(null, id, stop.id)}>
                 <button className="text-red-600 hover:underline">Eliminar</button>
@@ -254,18 +293,22 @@ export default async function EventConfigPage({
         </ul>
         <form
           action={addStopAction.bind(null, id)}
-          className="grid grid-cols-1 gap-3 sm:grid-cols-4"
+          className="grid grid-cols-1 gap-3 sm:grid-cols-5 sm:items-center"
         >
           <input
             name="sequence_order"
             type="number"
-            min="1"
+            min="0"
             placeholder="Orden"
             required
             className={inputClass}
           />
           <input name="name" placeholder="Nombre (ej. Merlo)" required className={inputClass} />
           <input name="maps_url" placeholder="Link de Google Maps" className={inputClass} />
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="is_presentation_stop" />
+            Es la parada de presentación
+          </label>
           <button className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium">
             Agregar
           </button>
