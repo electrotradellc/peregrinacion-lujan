@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -45,7 +46,8 @@ export default async function RegistroPage({
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">
-      <header className="mb-8">
+      <header className="mb-8 flex flex-col items-center text-center">
+        <Image src="/logo.png" alt="Parroquia San Isidro Labrador" width={424} height={186} className="mb-6 h-auto w-40" priority />
         <h1 className="text-2xl font-semibold">{event.name}</h1>
         <p className="mt-1 text-neutral-600">
           {new Date(event.event_date + "T00:00:00").toLocaleDateString("es-AR", {
