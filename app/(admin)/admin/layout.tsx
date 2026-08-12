@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { SignOutButton } from "@/components/admin/SignOutButton";
@@ -10,6 +11,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <header className="border-b border-neutral-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <nav className="flex flex-wrap items-center gap-4 text-sm font-medium">
+            <Image src="/logo.png" alt="Parroquia San Isidro Labrador" width={424} height={186} className="h-8 w-auto" />
             <Link href="/admin/eventos" className="text-neutral-900">
               Eventos
             </Link>
