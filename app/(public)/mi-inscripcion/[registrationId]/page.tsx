@@ -162,6 +162,18 @@ export default async function MiInscripcionPage({
               Chatear con tu referente por WhatsApp
             </a>
           )}
+          {event?.captains_coordinator_whatsapp && (
+            <a
+              href={whatsappLink(
+                event.captains_coordinator_whatsapp,
+                `Hola, soy ${registration.first_name} ${registration.last_name}, inscripto en la peregrinación`,
+              )}
+              target="_blank"
+              className="rounded-md border border-green-600 px-4 py-2 text-center text-sm font-semibold text-green-700"
+            >
+              Chatear con {event.captains_coordinator_name || "el coordinador de capitanes"} por WhatsApp
+            </a>
+          )}
           {event?.whatsapp_group_invite_url && (
             <a
               href={event.whatsapp_group_invite_url}

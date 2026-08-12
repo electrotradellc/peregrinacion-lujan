@@ -34,19 +34,28 @@ export default async function InfoPage({ params }: { params: Promise<{ eventId: 
           {(stops ?? []).map((stop) => (
             <li
               key={stop.id}
-              className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3"
+              className="rounded-lg border border-neutral-200 bg-white px-4 py-3"
             >
-              <span>
-                {stop.sequence_order}. {stop.name}
-              </span>
-              {stop.maps_url && (
-                <a
-                  href={stop.maps_url}
-                  target="_blank"
-                  className="text-sm text-blue-700 underline"
-                >
-                  Ver en Maps
-                </a>
+              <div className="flex items-center justify-between">
+                <span className="font-medium">
+                  {stop.sequence_order}. {stop.name}
+                </span>
+                {stop.maps_url && (
+                  <a
+                    href={stop.maps_url}
+                    target="_blank"
+                    className="text-sm text-blue-700 underline"
+                  >
+                    Ver en Maps
+                  </a>
+                )}
+              </div>
+              {(stop.location_description || stop.expected_time) && (
+                <p className="mt-1 text-sm text-neutral-600">
+                  {stop.location_description}
+                  {stop.location_description && stop.expected_time && " · "}
+                  {stop.expected_time && `Hora estimada: ${stop.expected_time.slice(0, 5)}hs`}
+                </p>
               )}
             </li>
           ))}

@@ -33,6 +33,8 @@ export interface EventRow {
   payment_alias: string | null;
   payment_instructions: string | null;
   contact_email: string | null;
+  captains_coordinator_name: string | null;
+  captains_coordinator_whatsapp: string | null;
   terms_and_conditions: string;
   terms_version: string;
   pending_payment_expiry_days: number;

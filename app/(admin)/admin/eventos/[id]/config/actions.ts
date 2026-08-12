@@ -21,6 +21,8 @@ export async function updateEventSettingsAction(eventId: string, formData: FormD
       whatsapp_group_invite_url: String(formData.get("whatsapp_group_invite_url") || "") || null,
       payment_alias: String(formData.get("payment_alias") || "") || null,
       contact_email: String(formData.get("contact_email") || "") || null,
+      captains_coordinator_name: String(formData.get("captains_coordinator_name") || "") || null,
+      captains_coordinator_whatsapp: String(formData.get("captains_coordinator_whatsapp") || "") || null,
       payment_instructions: String(formData.get("payment_instructions") || ""),
       walking_recommendations: String(formData.get("walking_recommendations") || ""),
       terms_and_conditions: String(formData.get("terms_and_conditions") || ""),
@@ -75,9 +77,28 @@ export async function addStopAction(eventId: string, formData: FormData) {
     event_id: eventId,
     sequence_order: Number(formData.get("sequence_order")),
     name: String(formData.get("name")),
+    location_description: String(formData.get("location_description") || "") || null,
     maps_url: String(formData.get("maps_url") || "") || null,
+    expected_time: String(formData.get("expected_time") || "") || null,
     is_presentation_stop: formData.get("is_presentation_stop") === "on",
   });
+  if (error) throw new Error(error.message);
+  revalidateConfig(eventId);
+}
+
+export async function updateStopAction(eventId: string, stopId: string, formData: FormData) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("stops")
+    .update({
+      sequence_order: Number(formData.get("sequence_order")),
+      name: String(formData.get("name")),
+      location_description: String(formData.get("location_description") || "") || null,
+      maps_url: String(formData.get("maps_url") || "") || null,
+      expected_time: String(formData.get("expected_time") || "") || null,
+      is_presentation_stop: formData.get("is_presentation_stop") === "on",
+    })
+    .eq("id", stopId);
   if (error) throw new Error(error.message);
   revalidateConfig(eventId);
 }

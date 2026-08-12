@@ -8,6 +8,7 @@ import {
   addBusAction,
   deleteBusAction,
   addStopAction,
+  updateStopAction,
   deleteStopAction,
 } from "./actions";
 
@@ -134,6 +135,28 @@ export default async function EventConfigPage({
               />
               <p className="mt-1 text-xs text-neutral-500">
                 Adonde se pide el comprobante de pago y el reply-to de los emails automáticos.
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Nombre del coordinador de capitanes</label>
+              <input
+                name="captains_coordinator_name"
+                defaultValue={event.captains_coordinator_name ?? ""}
+                placeholder="Ej. Juan Pérez"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">WhatsApp del coordinador de capitanes</label>
+              <input
+                name="captains_coordinator_whatsapp"
+                defaultValue={event.captains_coordinator_whatsapp ?? ""}
+                placeholder="+54911..."
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-neutral-500">
+                Le aparece a cada inscripto confirmado en /mi-inscripcion, junto al whatsapp de
+                su propio capitán de micro.
               </p>
             </div>
           </div>
@@ -274,19 +297,62 @@ export default async function EventConfigPage({
 
       <section className={cardClass}>
         <h2 className="font-semibold">Paradas</h2>
+        <p className="text-sm text-neutral-600">
+          Dirección y horario estimado se muestran a los inscriptos en el mapa de paradas
+          público.
+        </p>
         <ul className="divide-y divide-neutral-200">
           {(stops ?? []).map((stop) => (
-            <li key={stop.id} className="flex items-center justify-between py-2 text-sm">
-              <span>
-                {stop.sequence_order}. <strong>{stop.name}</strong>
-                {stop.is_presentation_stop && (
-                  <span className="ml-1 rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-600">
-                    presentación
-                  </span>
-                )}
-              </span>
-              <form action={deleteStopAction.bind(null, id, stop.id)}>
-                <button className="text-red-600 hover:underline">Eliminar</button>
+            <li key={stop.id} className="py-3">
+              <form
+                action={updateStopAction.bind(null, id, stop.id)}
+                className="grid grid-cols-1 gap-3 sm:grid-cols-6 sm:items-center"
+              >
+                <input
+                  name="sequence_order"
+                  type="number"
+                  min="0"
+                  defaultValue={stop.sequence_order}
+                  required
+                  className={inputClass}
+                />
+                <input name="name" defaultValue={stop.name} required className={inputClass} />
+                <input
+                  name="location_description"
+                  defaultValue={stop.location_description ?? ""}
+                  placeholder="Dirección"
+                  className={inputClass}
+                />
+                <input
+                  name="expected_time"
+                  type="time"
+                  defaultValue={stop.expected_time?.slice(0, 5) ?? ""}
+                  className={inputClass}
+                />
+                <input
+                  name="maps_url"
+                  defaultValue={stop.maps_url ?? ""}
+                  placeholder="Link de Google Maps"
+                  className={inputClass}
+                />
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="is_presentation_stop" defaultChecked={stop.is_presentation_stop} />
+                    Presentación
+                  </label>
+                </div>
+                <div className="flex gap-3 sm:col-span-6">
+                  <button className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium">
+                    Guardar
+                  </button>
+                  <button
+                    type="submit"
+                    formAction={deleteStopAction.bind(null, id, stop.id)}
+                    className="text-sm text-red-600 hover:underline"
+                  >
+                    Eliminar
+                  </button>
+                </div>
               </form>
             </li>
           ))}
@@ -304,6 +370,8 @@ export default async function EventConfigPage({
             className={inputClass}
           />
           <input name="name" placeholder="Nombre (ej. Merlo)" required className={inputClass} />
+          <input name="location_description" placeholder="Dirección" className={inputClass} />
+          <input name="expected_time" type="time" className={inputClass} />
           <input name="maps_url" placeholder="Link de Google Maps" className={inputClass} />
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="is_presentation_stop" />
