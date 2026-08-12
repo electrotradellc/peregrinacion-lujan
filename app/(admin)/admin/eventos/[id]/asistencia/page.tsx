@@ -75,7 +75,7 @@ export default async function AsistenciaPage({
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Asistencia</h1>
+      <h1 className="text-xl font-semibold">{direction === "return" ? "Vuelta" : "Asistencia"}</h1>
 
       <div className="flex flex-wrap gap-2 text-sm">
         {buses.map((b) => (
@@ -87,21 +87,6 @@ export default async function AsistenciaPage({
             Micro {b.bus_number}
           </Link>
         ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2 text-sm">
-        <Link
-          href={linkTo({ direction: "outbound" })}
-          className={`rounded-md px-3 py-1.5 ${direction === "outbound" ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
-        >
-          Ida
-        </Link>
-        <Link
-          href={linkTo({ direction: "return" })}
-          className={`rounded-md px-3 py-1.5 ${direction === "return" ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
-        >
-          Vuelta
-        </Link>
       </div>
 
       <div className="flex flex-wrap gap-2 text-sm">
