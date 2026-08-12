@@ -27,7 +27,10 @@ export default async function AsistenciaPage({
     );
   }
 
-  const busId = sp.busId && buses.some((b) => b.id === sp.busId) ? sp.busId : buses[0].id;
+  const busId = sp.busId === "all" || (sp.busId && buses.some((b) => b.id === sp.busId)) ? sp.busId! : buses[0].id;
+  const allBuses = busId === "all";
+  const busIds = buses.map((b) => b.id);
+  const busNumberById = new Map(buses.map((b) => [b.id, b.bus_number]));
   const direction: AssignmentDirection = sp.direction === "return" ? "return" : "outbound";
   const lastStop = stops[stops.length - 1];
   // En Vuelta solo se embarca en Luján (última parada) — no hay otras opciones.
@@ -39,29 +42,31 @@ export default async function AsistenciaPage({
         : stops[0].id;
 
   const [{ data: assignments }, { data: checkinsAtStop }, { data: supportCheckins }] = await Promise.all([
-    supabase
-      .from("bus_assignments")
-      .select("*, registrations!inner(*)")
-      .eq("bus_id", busId)
+    (allBuses
+      ? supabase.from("bus_assignments").select("*, registrations!inner(*)").in("bus_id", busIds)
+      : supabase.from("bus_assignments").select("*, registrations!inner(*)").eq("bus_id", busId)
+    )
       .eq("direction", direction)
       .eq("registrations.status", "confirmed")
       .returns<(BusAssignmentRow & { registrations: RegistrationRow })[]>(),
-    supabase
-      .from("attendance_checkins")
-      .select("*")
-      .eq("bus_id", busId)
+    (allBuses
+      ? supabase.from("attendance_checkins").select("*").in("bus_id", busIds)
+      : supabase.from("attendance_checkins").select("*").eq("bus_id", busId)
+    )
       .eq("direction", direction)
       .eq("stop_id", stopId),
-    supabase
-      .from("attendance_checkins")
-      .select("registration_id")
-      .eq("bus_id", busId)
+    (allBuses
+      ? supabase.from("attendance_checkins").select("registration_id").in("bus_id", busIds)
+      : supabase.from("attendance_checkins").select("registration_id").eq("bus_id", busId)
+    )
       .eq("direction", direction)
       .eq("event_type", "support_vehicle"),
   ]);
 
   const roster = (assignments ?? []).map((a) => ({
     registrationId: a.registrations.id,
+    busId: a.bus_id,
+    busNumber: busNumberById.get(a.bus_id) ?? 0,
     pilgrimCode: a.registrations.pilgrim_code,
     lastName: a.registrations.last_name,
     firstName: a.registrations.first_name,
@@ -78,6 +83,12 @@ export default async function AsistenciaPage({
       <h1 className="text-xl font-semibold">{direction === "return" ? "Vuelta" : "Asistencia"}</h1>
 
       <div className="flex flex-wrap gap-2 text-sm">
+        <Link
+          href={linkTo({ busId: "all" })}
+          className={`rounded-md px-3 py-1.5 ${allBuses ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
+        >
+          Todos
+        </Link>
         {buses.map((b) => (
           <Link
             key={b.id}
@@ -103,7 +114,6 @@ export default async function AsistenciaPage({
 
       <AttendanceTable
         eventId={id}
-        busId={busId}
         direction={direction}
         stopId={stopId}
         roster={roster}

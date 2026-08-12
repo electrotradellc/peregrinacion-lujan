@@ -69,6 +69,8 @@ export default async function CaptainAsistenciaPage({
   ]);
   const roster = ((rosterRaw ?? []) as CaptainRosterRow[]).map((r) => ({
     registrationId: r.registration_id,
+    busId,
+    busNumber: bus?.bus_number ?? 0,
     pilgrimCode: r.pilgrim_code,
     lastName: r.last_name,
     firstName: r.first_name,
@@ -120,7 +122,6 @@ export default async function CaptainAsistenciaPage({
 
       <AttendanceTable
         eventId={eventId}
-        busId={busId}
         direction={direction}
         stopId={stopId}
         roster={roster}
