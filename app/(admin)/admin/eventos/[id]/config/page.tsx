@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { EventRow, StartingPointRow, BusRow, StopRow } from "@/lib/types";
+import type { EventRow, StartingPointRow, BusRow, StopRow, BusCaptainAssignmentRow, ProfileRow } from "@/lib/types";
+import { CollapsibleAddForm } from "@/components/admin/CollapsibleAddForm";
 import {
   updateEventSettingsAction,
   addStartingPointAction,
@@ -50,6 +51,24 @@ export default async function EventConfigPage({
 
   const startingPointName = (spId: string) =>
     startingPoints?.find((sp) => sp.id === spId)?.name ?? "?";
+
+  const { data: captainAssignments } = await supabase
+    .from("bus_captain_assignments")
+    .select("*")
+    .eq("event_id", id)
+    .returns<BusCaptainAssignmentRow[]>();
+
+  const captainProfileIds = [...new Set((captainAssignments ?? []).map((a) => a.profile_id))];
+  const { data: captainProfiles } = captainProfileIds.length
+    ? await supabase.from("profiles").select("*").in("id", captainProfileIds).returns<ProfileRow[]>()
+    : { data: [] as ProfileRow[] };
+
+  const captainByBusId = new Map(
+    (captainAssignments ?? []).map((a) => [
+      a.bus_id,
+      captainProfiles?.find((p) => p.id === a.profile_id) ?? null,
+    ]),
+  );
 
   return (
     <div className="space-y-8">
@@ -230,69 +249,87 @@ export default async function EventConfigPage({
             </li>
           ))}
         </ul>
-        <form
-          action={addStartingPointAction.bind(null, id)}
-          className="grid grid-cols-1 gap-3 sm:grid-cols-4"
-        >
-          <input name="name" placeholder="Nombre (ej. Liniers)" required className={inputClass} />
-          <input name="presentation_time" type="time" required className={inputClass} />
-          <input
-            name="presentation_location"
-            placeholder="Lugar de presentación"
-            required
-            className={inputClass}
-          />
-          <button className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium">
-            Agregar
-          </button>
-        </form>
+        <CollapsibleAddForm>
+          <form
+            action={addStartingPointAction.bind(null, id)}
+            className="grid grid-cols-1 gap-3 sm:grid-cols-4"
+          >
+            <input name="name" placeholder="Nombre (ej. Liniers)" required className={inputClass} />
+            <input name="presentation_time" type="time" required className={inputClass} />
+            <input
+              name="presentation_location"
+              placeholder="Lugar de presentación"
+              required
+              className={inputClass}
+            />
+            <button className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium">
+              Agregar
+            </button>
+          </form>
+        </CollapsibleAddForm>
       </section>
 
       <section className={cardClass}>
         <h2 className="font-semibold">Micros</h2>
         <p className="text-sm text-neutral-600">
           La cantidad de micros es libre — agregá o quitá los que necesites. Cada micro
-          pertenece a un único punto de partida.
+          pertenece a un único punto de partida. El capitán se asigna desde{" "}
+          <a href="/admin/usuarios" className="underline">
+            Usuarios
+          </a>
+          ; acá solo se muestra quién quedó a cargo de cada uno.
         </p>
         <ul className="divide-y divide-neutral-200">
-          {(buses ?? []).map((bus) => (
-            <li key={bus.id} className="flex items-center justify-between py-2 text-sm">
-              <span>
-                Micro <strong>{bus.bus_number}</strong> — {startingPointName(bus.starting_point_id)}{" "}
-                — {bus.capacity} lugares
-              </span>
-              <form action={deleteBusAction.bind(null, id, bus.id)}>
-                <button className="text-red-600 hover:underline">Eliminar</button>
-              </form>
-            </li>
-          ))}
+          {(buses ?? []).map((bus) => {
+            const captain = captainByBusId.get(bus.id);
+            return (
+              <li key={bus.id} className="flex items-center justify-between py-2 text-sm">
+                <span>
+                  Micro <strong>{bus.bus_number}</strong> — {startingPointName(bus.starting_point_id)}{" "}
+                  — {bus.capacity} lugares
+                  <br />
+                  <span className="text-xs text-neutral-500">
+                    Capitán:{" "}
+                    {captain
+                      ? `${captain.full_name}${captain.whatsapp_phone ? ` — ${captain.whatsapp_phone}` : " (sin WhatsApp cargado)"}`
+                      : "sin asignar"}
+                  </span>
+                </span>
+                <form action={deleteBusAction.bind(null, id, bus.id)}>
+                  <button className="text-red-600 hover:underline">Eliminar</button>
+                </form>
+              </li>
+            );
+          })}
         </ul>
-        <form
-          action={addBusAction.bind(null, id)}
-          className="grid grid-cols-1 gap-3 sm:grid-cols-4"
-        >
-          <select name="starting_point_id" required className={inputClass}>
-            <option value="">Punto de partida</option>
-            {(startingPoints ?? []).map((sp) => (
-              <option key={sp.id} value={sp.id}>
-                {sp.name}
-              </option>
-            ))}
-          </select>
-          <input name="bus_number" type="number" min="1" placeholder="Número" required className={inputClass} />
-          <input
-            name="capacity"
-            type="number"
-            min="1"
-            defaultValue={40}
-            placeholder="Capacidad"
-            required
-            className={inputClass}
-          />
-          <button className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium">
-            Agregar
-          </button>
-        </form>
+        <CollapsibleAddForm>
+          <form
+            action={addBusAction.bind(null, id)}
+            className="grid grid-cols-1 gap-3 sm:grid-cols-4"
+          >
+            <select name="starting_point_id" required className={inputClass}>
+              <option value="">Punto de partida</option>
+              {(startingPoints ?? []).map((sp) => (
+                <option key={sp.id} value={sp.id}>
+                  {sp.name}
+                </option>
+              ))}
+            </select>
+            <input name="bus_number" type="number" min="1" placeholder="Número" required className={inputClass} />
+            <input
+              name="capacity"
+              type="number"
+              min="1"
+              defaultValue={40}
+              placeholder="Capacidad"
+              required
+              className={inputClass}
+            />
+            <button className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium">
+              Agregar
+            </button>
+          </form>
+        </CollapsibleAddForm>
       </section>
 
       <section className={cardClass}>
@@ -357,30 +394,32 @@ export default async function EventConfigPage({
             </li>
           ))}
         </ul>
-        <form
-          action={addStopAction.bind(null, id)}
-          className="grid grid-cols-1 gap-3 sm:grid-cols-5 sm:items-center"
-        >
-          <input
-            name="sequence_order"
-            type="number"
-            min="0"
-            placeholder="Orden"
-            required
-            className={inputClass}
-          />
-          <input name="name" placeholder="Nombre (ej. Merlo)" required className={inputClass} />
-          <input name="location_description" placeholder="Dirección" className={inputClass} />
-          <input name="expected_time" type="time" className={inputClass} />
-          <input name="maps_url" placeholder="Link de Google Maps" className={inputClass} />
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="is_presentation_stop" />
-            Es la parada de presentación
-          </label>
-          <button className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium">
-            Agregar
-          </button>
-        </form>
+        <CollapsibleAddForm>
+          <form
+            action={addStopAction.bind(null, id)}
+            className="grid grid-cols-1 gap-3 sm:grid-cols-5 sm:items-center"
+          >
+            <input
+              name="sequence_order"
+              type="number"
+              min="0"
+              placeholder="Orden"
+              required
+              className={inputClass}
+            />
+            <input name="name" placeholder="Nombre (ej. Merlo)" required className={inputClass} />
+            <input name="location_description" placeholder="Dirección" className={inputClass} />
+            <input name="expected_time" type="time" className={inputClass} />
+            <input name="maps_url" placeholder="Link de Google Maps" className={inputClass} />
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="is_presentation_stop" />
+              Es la parada de presentación
+            </label>
+            <button className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium">
+              Agregar
+            </button>
+          </form>
+        </CollapsibleAddForm>
       </section>
     </div>
   );
