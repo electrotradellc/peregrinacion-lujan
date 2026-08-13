@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
@@ -88,6 +89,7 @@ export default async function MiInscripcionPage({
 
   return (
     <main className="mx-auto max-w-xl px-4 py-10">
+      <Image src="/logo.png" alt="Parroquia San Isidro Labrador" width={424} height={186} className="mb-6 h-auto w-32" />
       <h1 className="text-2xl font-semibold">
         {registration.first_name} {registration.last_name}
       </h1>

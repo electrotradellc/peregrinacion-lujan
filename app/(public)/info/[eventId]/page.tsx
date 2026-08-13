@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
@@ -24,6 +25,7 @@ export default async function InfoPage({ params }: { params: Promise<{ eventId: 
   return (
     <main className="mx-auto max-w-xl px-4 py-10 space-y-8">
       <div>
+        <Image src="/logo.png" alt="Parroquia San Isidro Labrador" width={424} height={186} className="mb-6 h-auto w-32" />
         <h1 className="text-2xl font-semibold">{event.name}</h1>
         <p className="text-neutral-600">Paradas y recomendaciones para la caminata.</p>
       </div>
