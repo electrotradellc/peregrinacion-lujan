@@ -62,14 +62,27 @@ export default async function InfoPage({ params }: { params: Promise<{ eventId: 
         </ol>
       </section>
 
-      {event.whatsapp_group_invite_url && (
-        <a
-          href={event.whatsapp_group_invite_url}
-          target="_blank"
-          className="block rounded-md bg-green-600 px-4 py-2 text-center text-sm font-semibold text-white"
-        >
-          Sumate al grupo de WhatsApp
-        </a>
+      {(event.whatsapp_group_invite_url || event.contact_email) && (
+        <section className="space-y-2">
+          <h2 className="text-lg font-semibold">Contacto</h2>
+          {event.whatsapp_group_invite_url && (
+            <a
+              href={event.whatsapp_group_invite_url}
+              target="_blank"
+              className="block rounded-md bg-green-600 px-4 py-2 text-center text-sm font-semibold text-white"
+            >
+              Sumate al grupo de WhatsApp
+            </a>
+          )}
+          {event.contact_email && (
+            <a
+              href={`mailto:${event.contact_email}`}
+              className="block rounded-md border border-neutral-300 px-4 py-2 text-center text-sm font-semibold text-neutral-700"
+            >
+              Escribinos a {event.contact_email}
+            </a>
+          )}
+        </section>
       )}
 
       {event.walking_recommendations && (
