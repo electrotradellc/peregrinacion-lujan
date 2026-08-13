@@ -9,22 +9,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-screen bg-neutral-50">
       <header className="border-b border-neutral-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
-          <nav className="flex flex-nowrap items-center gap-4 text-sm font-medium">
-            <Image
-              src="/logo.png"
-              alt="Parroquia San Isidro Labrador"
-              width={424}
-              height={186}
-              className="h-8 w-auto shrink-0"
-            />
-            <Link href="/admin/eventos" className="shrink-0 text-neutral-900">
-              Eventos
-            </Link>
-            <Link href="/admin/usuarios" className="shrink-0 text-neutral-600 hover:text-neutral-900">
-              Usuarios
-            </Link>
-          </nav>
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 pt-3">
+          <Image src="/logo.png" alt="Parroquia San Isidro Labrador" width={424} height={186} className="h-8 w-auto shrink-0" />
           <div className="flex shrink-0 items-center gap-3 whitespace-nowrap text-sm text-neutral-600">
             <Link href="/admin/perfil" className="hover:text-neutral-900">
               {session.profile.full_name}
@@ -32,6 +18,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <SignOutButton />
           </div>
         </div>
+        <nav className="mx-auto flex max-w-6xl flex-wrap gap-4 px-4 pb-3 pt-2 text-sm font-medium">
+          <Link href="/admin/eventos" className="text-neutral-900">
+            Eventos
+          </Link>
+          <Link href="/admin/usuarios" className="text-neutral-600 hover:text-neutral-900">
+            Usuarios
+          </Link>
+        </nav>
       </header>
       <div className="mx-auto max-w-6xl px-4 py-8">{children}</div>
     </div>
