@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import type { BusRow, StopRow, RegistrationRow, BusAssignmentRow, AssignmentDirection } from "@/lib/types";
 import { AttendanceTable } from "@/components/attendance/AttendanceTable";
+import { AsistenciaSelectors } from "@/components/attendance/AsistenciaSelectors";
 
 export default async function AsistenciaPage({
   params,
@@ -73,44 +73,18 @@ export default async function AsistenciaPage({
     phone: a.registrations.phone,
   }));
 
-  const linkTo = (overrides: Record<string, string>) => {
-    const params = new URLSearchParams({ busId, direction, stopId, ...overrides });
-    return `/admin/eventos/${id}/asistencia?${params.toString()}`;
-  };
-
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{direction === "return" ? "Vuelta" : "Asistencia"}</h1>
 
-      <div className="flex flex-wrap gap-2 text-sm">
-        <Link
-          href={linkTo({ busId: "all" })}
-          className={`rounded-md px-3 py-1.5 ${allBuses ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
-        >
-          Todos
-        </Link>
-        {buses.map((b) => (
-          <Link
-            key={b.id}
-            href={linkTo({ busId: b.id })}
-            className={`rounded-md px-3 py-1.5 ${b.id === busId ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
-          >
-            Micro {b.bus_number}
-          </Link>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2 text-sm">
-        {(direction === "return" ? [lastStop] : stops).map((s) => (
-          <Link
-            key={s.id}
-            href={linkTo({ stopId: s.id })}
-            className={`rounded-md px-3 py-1.5 ${s.id === stopId ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
-          >
-            {s.sequence_order}. {s.name}
-          </Link>
-        ))}
-      </div>
+      <AsistenciaSelectors
+        basePath={`/admin/eventos/${id}/asistencia`}
+        direction={direction}
+        busId={busId}
+        stopId={stopId}
+        buses={buses}
+        stops={direction === "return" ? [lastStop] : stops}
+      />
 
       <AttendanceTable
         eventId={id}
