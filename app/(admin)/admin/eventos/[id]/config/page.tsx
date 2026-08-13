@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { EventRow, StartingPointRow, BusRow, StopRow, BusCaptainAssignmentRow, ProfileRow } from "@/lib/types";
 import { CollapsibleAddForm } from "@/components/admin/CollapsibleAddForm";
+import { StopListItem } from "@/components/admin/StopListItem";
 import {
   updateEventSettingsAction,
   addStartingPointAction,
@@ -340,58 +341,13 @@ export default async function EventConfigPage({
         </p>
         <ul className="divide-y divide-neutral-200">
           {(stops ?? []).map((stop) => (
-            <li key={stop.id} className="py-3">
-              <form
-                action={updateStopAction.bind(null, id, stop.id)}
-                className="grid grid-cols-1 gap-3 sm:grid-cols-6 sm:items-center"
-              >
-                <input
-                  name="sequence_order"
-                  type="number"
-                  min="0"
-                  defaultValue={stop.sequence_order}
-                  required
-                  className={inputClass}
-                />
-                <input name="name" defaultValue={stop.name} required className={inputClass} />
-                <input
-                  name="location_description"
-                  defaultValue={stop.location_description ?? ""}
-                  placeholder="Dirección"
-                  className={inputClass}
-                />
-                <input
-                  name="expected_time"
-                  type="time"
-                  defaultValue={stop.expected_time?.slice(0, 5) ?? ""}
-                  className={inputClass}
-                />
-                <input
-                  name="maps_url"
-                  defaultValue={stop.maps_url ?? ""}
-                  placeholder="Link de Google Maps"
-                  className={inputClass}
-                />
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="is_presentation_stop" defaultChecked={stop.is_presentation_stop} />
-                    Presentación
-                  </label>
-                </div>
-                <div className="flex gap-3 sm:col-span-6">
-                  <button className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium">
-                    Guardar
-                  </button>
-                  <button
-                    type="submit"
-                    formAction={deleteStopAction.bind(null, id, stop.id)}
-                    className="text-sm text-red-600 hover:underline"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </form>
-            </li>
+            <StopListItem
+              key={stop.id}
+              stop={stop}
+              inputClass={inputClass}
+              updateAction={updateStopAction.bind(null, id, stop.id)}
+              deleteAction={deleteStopAction.bind(null, id, stop.id)}
+            />
           ))}
         </ul>
         <CollapsibleAddForm>
