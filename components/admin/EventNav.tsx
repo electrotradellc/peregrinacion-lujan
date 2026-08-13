@@ -20,18 +20,16 @@ export function EventNav({ eventId }: { eventId: string }) {
     { href: `${base}/asistencia?direction=return`, label: "Vuelta", active: isVuelta },
   ];
 
-  const current = items.find((item) => item.active);
-
   return (
-    <div className="relative border-b border-neutral-200">
+    <div className="relative border-b border-neutral-200 py-3">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 px-1 py-2 text-sm font-medium text-neutral-900"
+        className="flex items-center gap-2 text-base font-medium text-neutral-900"
         aria-expanded={open}
       >
-        <span aria-hidden className="text-lg leading-none">☰</span>
-        {current?.label ?? "Menú"}
+        <span aria-hidden className="text-xl leading-none">☰</span>
+        Menú
       </button>
 
       {open && (
