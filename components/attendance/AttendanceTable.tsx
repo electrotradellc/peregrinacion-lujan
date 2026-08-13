@@ -65,10 +65,16 @@ export function AttendanceTable({
 
   const supportSet = useMemo(() => new Set(supportVehicleRegistrationIds), [supportVehicleRegistrationIds]);
 
-  // "No se presentaron" reutiliza el mismo chequeo de "arrival" que en las
-  // demás paradas — en la parada de presentación, "llegó" = "se presentó".
-  const notPresentedCount = useMemo(
+  // En la parada de presentación, "llegó" = "se presentó". En el resto de
+  // las paradas, el mismo conteo sirve para "sin llegada" y agregamos el
+  // equivalente de "sin salida".
+  const notArrivedCount = useMemo(
     () => roster.filter((r) => !findCheckin(r.registrationId, "arrival")).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [roster, checkinsAtStop],
+  );
+  const notDepartedCount = useMemo(
+    () => roster.filter((r) => !findCheckin(r.registrationId, "departure")).length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [roster, checkinsAtStop],
   );
@@ -165,10 +171,23 @@ export function AttendanceTable({
           <option value="name">Ordenar por apellido</option>
           {showBusColumn && <option value="bus">Ordenar por micro</option>}
         </select>
-        {isPresentationStop && (
+        {isPresentationStop ? (
           <span className="flex items-center rounded-md bg-amber-50 px-3 py-1.5 text-amber-800">
-            {notPresentedCount} sin presentar
+            {notArrivedCount} sin presentar
           </span>
+        ) : (
+          <>
+            {!hideArrival && (
+              <span className="flex items-center rounded-md bg-amber-50 px-3 py-1.5 text-amber-800">
+                {notArrivedCount} sin llegada
+              </span>
+            )}
+            {!hideDeparture && (
+              <span className="flex items-center rounded-md bg-amber-50 px-3 py-1.5 text-amber-800">
+                {notDepartedCount} sin salida
+              </span>
+            )}
+          </>
         )}
       </div>
 
