@@ -8,9 +8,15 @@ export default async function CaptainLayout({ children }: { children: React.Reac
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      <header className="flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-3">
-        <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="Parroquia San Isidro Labrador" width={424} height={186} className="h-8 w-auto" />
+      <header className="flex items-center justify-between gap-4 overflow-x-auto border-b border-neutral-200 bg-white px-4 py-3">
+        <div className="flex shrink-0 items-center gap-3 whitespace-nowrap">
+          <Image
+            src="/logo.png"
+            alt="Parroquia San Isidro Labrador"
+            width={424}
+            height={186}
+            className="h-8 w-auto shrink-0"
+          />
           <Link href="/capitan/perfil" className="font-medium hover:underline">
             {session.profile.full_name}
           </Link>

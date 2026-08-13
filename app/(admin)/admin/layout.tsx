@@ -25,7 +25,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               Usuarios
             </Link>
           </nav>
-          <div className="flex items-center gap-3 text-sm text-neutral-600">
+          <div className="flex shrink-0 items-center gap-3 whitespace-nowrap text-sm text-neutral-600">
             <Link href="/admin/perfil" className="hover:text-neutral-900">
               {session.profile.full_name}
             </Link>
