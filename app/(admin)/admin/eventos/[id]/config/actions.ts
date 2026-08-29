@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 function revalidateConfig(eventId: string) {
@@ -31,6 +32,7 @@ export async function updateEventSettingsAction(eventId: string, formData: FormD
     .eq("id", eventId);
   if (error) throw new Error(error.message);
   revalidateConfig(eventId);
+  redirect(`/admin/eventos/${eventId}/config?saved=1`);
 }
 
 export async function addStartingPointAction(eventId: string, formData: FormData) {

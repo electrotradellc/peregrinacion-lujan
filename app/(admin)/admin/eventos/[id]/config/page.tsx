@@ -19,10 +19,13 @@ const cardClass = "rounded-lg border border-neutral-200 bg-white p-4 space-y-4";
 
 export default async function EventConfigPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ saved?: string }>;
 }) {
   const { id } = await params;
+  const { saved } = await searchParams;
   const supabase = await createClient();
 
   const [{ data: event }, { data: startingPoints }, { data: buses }, { data: stops }] =
@@ -74,6 +77,12 @@ export default async function EventConfigPage({
   return (
     <div className="space-y-8">
       <h1 className="text-xl font-semibold">Configuración — {event.name}</h1>
+
+      {saved === "1" && (
+        <div className="rounded-md bg-green-50 px-4 py-2 text-sm font-medium text-green-800">
+          ✓ Cambios guardados
+        </div>
+      )}
 
       <section className={cardClass}>
         <h2 className="font-semibold">Datos generales</h2>
