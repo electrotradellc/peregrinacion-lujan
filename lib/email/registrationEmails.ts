@@ -113,7 +113,14 @@ export async function sendRegistrationPendingEmail(
   await sendEmail({ to: registration.email, subject, text });
 }
 
-export const PAYMENT_CONFIRMED_TAGS = ["nombre", "evento", "estado_micro", "link", "firma"] as const;
+export const PAYMENT_CONFIRMED_TAGS = [
+  "nombre",
+  "evento",
+  "estado_micro",
+  "grupo_whatsapp",
+  "link",
+  "firma",
+] as const;
 
 export const DEFAULT_PAYMENT_CONFIRMED_TEMPLATE = `Hola {{nombre}}, recibimos tu comprobante y tu inscripción a la {{evento}} quedó CONFIRMADA!
 
@@ -144,6 +151,7 @@ export function buildPaymentConfirmedEmail(
     nombre: registration.first_name,
     evento: event.name,
     estado_micro: estadoMicro,
+    grupo_whatsapp: event.whatsapp_group_invite_url ?? "",
     link,
     firma: SIGNATURE,
   });
