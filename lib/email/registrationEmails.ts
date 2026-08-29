@@ -1,9 +1,10 @@
 import "server-only";
 import { sendEmail } from "./client";
+import { renderTemplate } from "./template";
 import { magicLinkPath } from "@/lib/magicLink";
 import type { RegistrationRow, EventRow, StartingPointRow, BusRow } from "@/lib/types";
 
-function siteUrl() {
+export function siteUrl() {
   return (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
 }
 
@@ -25,6 +26,38 @@ function medicalSummary(r: RegistrationRow): string {
 }
 
 const SIGNATURE = "Muchas gracias!\nSaludos.\n\nGrupo de Apoyo Luján\nParroquia San Isidro Labrador";
+
+export const REGISTRATION_PENDING_TAGS = [
+  "nombre",
+  "evento",
+  "datos_cargados",
+  "monto",
+  "instrucciones_pago",
+  "contacto_alternativo",
+  "link",
+  "firma",
+] as const;
+
+export const DEFAULT_REGISTRATION_PENDING_TEMPLATE = `Hola {{nombre}}, hemos recibido tu Formulario de Inscripción a la {{evento}}!
+
+Vamos a revisar toda la información y si necesitamos algo más te vamos a contactar por email o WhatsApp.
+
+Estos son los datos que cargaste:
+{{datos_cargados}}
+
+Tu inscripción está PENDIENTE hasta que confirmemos el pago.
+
+Si todavía no hiciste el pago, estos son los datos:
+
+VALOR: {{monto}} por peregrino
+
+{{instrucciones_pago}}
+
+Luego de pagar envianos el comprobante respondiendo este email{{contacto_alternativo}}.
+
+Podés ver el estado de tu inscripción en cualquier momento acá: {{link}}
+
+{{firma}}`;
 
 // Se dispara al terminar de inscribirse (registration en pending_payment).
 // Confirma la recepción, repite los datos cargados (para que el peregrino
@@ -55,28 +88,18 @@ export function buildRegistrationPendingEmail(
     `Información médica: ${medicalSummary(registration)}`,
   ].join("\n");
 
-  const paymentSection = event.payment_instructions
-    ? `\n${stripMarkdown(event.payment_instructions)}\n`
-    : "";
+  const template = event.email_registration_pending_template || DEFAULT_REGISTRATION_PENDING_TEMPLATE;
 
-  const text = `Hola ${registration.first_name}, hemos recibido tu Formulario de Inscripción a la ${event.name}!
-
-Vamos a revisar toda la información y si necesitamos algo más te vamos a contactar por email o WhatsApp.
-
-Estos son los datos que cargaste:
-${dataSummary}
-
-Tu inscripción está PENDIENTE hasta que confirmemos el pago.
-
-Si todavía no hiciste el pago, estos son los datos:
-
-VALOR: $${event.registration_price_ars.toLocaleString("es-AR")} por peregrino
-${paymentSection}
-Luego de pagar envianos el comprobante respondiendo este email${event.contact_email ? ` o a ${event.contact_email}` : ""}.
-
-Podés ver el estado de tu inscripción en cualquier momento acá: ${link}
-
-${SIGNATURE}`;
+  const text = renderTemplate(template, {
+    nombre: registration.first_name,
+    evento: event.name,
+    datos_cargados: dataSummary,
+    monto: `$${event.registration_price_ars.toLocaleString("es-AR")}`,
+    instrucciones_pago: event.payment_instructions ? stripMarkdown(event.payment_instructions) : "",
+    contacto_alternativo: event.contact_email ? ` o a ${event.contact_email}` : "",
+    link,
+    firma: SIGNATURE,
+  });
 
   return { subject: `Inscripción recibida — ${event.name}`, text };
 }
@@ -90,6 +113,18 @@ export async function sendRegistrationPendingEmail(
   await sendEmail({ to: registration.email, subject, text });
 }
 
+export const PAYMENT_CONFIRMED_TAGS = ["nombre", "evento", "estado_micro", "link", "firma"] as const;
+
+export const DEFAULT_PAYMENT_CONFIRMED_TEMPLATE = `Hola {{nombre}}, recibimos tu comprobante y tu inscripción a la {{evento}} quedó CONFIRMADA!
+
+{{estado_micro}}
+
+Podés ver el estado de tu inscripción en cualquier momento acá: {{link}}
+
+¡Nos vemos en la peregrinación!
+
+{{firma}}`;
+
 // Se dispara cuando el admin marca la inscripción como pagada.
 export function buildPaymentConfirmedEmail(
   registration: RegistrationRow,
@@ -99,19 +134,19 @@ export function buildPaymentConfirmedEmail(
 ): { subject: string; text: string } {
   const link = `${siteUrl()}${magicLinkPath(registration.id)}`;
 
-  const busLine = bus
+  const estadoMicro = bus
     ? `Vas en el Micro ${bus.bus_number}. Salís desde ${startingPoint?.name ?? "-"}, presentarte ${startingPoint?.presentation_time.slice(0, 5)}hs en ${startingPoint?.presentation_location ?? "-"}.`
     : "Todavía no te asignamos micro — te vamos a avisar por acá o por WhatsApp en cuanto lo hagamos.";
 
-  const text = `Hola ${registration.first_name}, recibimos tu comprobante y tu inscripción a la ${event.name} quedó CONFIRMADA!
+  const template = event.email_payment_confirmed_template || DEFAULT_PAYMENT_CONFIRMED_TEMPLATE;
 
-${busLine}
-
-Podés ver el estado de tu inscripción en cualquier momento acá: ${link}
-
-¡Nos vemos en la peregrinación!
-
-${SIGNATURE}`;
+  const text = renderTemplate(template, {
+    nombre: registration.first_name,
+    evento: event.name,
+    estado_micro: estadoMicro,
+    link,
+    firma: SIGNATURE,
+  });
 
   return { subject: `Inscripción confirmada — ${event.name}`, text };
 }

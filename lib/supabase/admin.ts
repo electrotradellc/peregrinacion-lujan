@@ -9,6 +9,7 @@ import { createClient } from "@supabase/supabase-js";
 //   - subir/leer las fotos de DNI y carnet de obra social (bucket privado)
 //   - crear cuentas de capitanes vía Supabase Auth Admin API
 //   - el cron de expiración de inscripciones pendientes de pago
+//   - /recuperar (buscar por DNI+email sin sesión, para reenviar el link mágico)
 //
 // El resto de la app (CRUD de admin, lectura de capitanes) debe usar
 // lib/supabase/server.ts con la sesión real del usuario, para que RLS siga

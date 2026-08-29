@@ -111,3 +111,31 @@ export async function deleteStopAction(eventId: string, stopId: string) {
   if (error) throw new Error(error.message);
   revalidateConfig(eventId);
 }
+
+export type EmailTemplateField = "email_registration_pending_template" | "email_payment_confirmed_template";
+
+export async function updateEmailTemplateAction(
+  eventId: string,
+  field: EmailTemplateField,
+  formData: FormData,
+) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("events")
+    .update({ [field]: String(formData.get("template") || "") || null })
+    .eq("id", eventId);
+  if (error) throw new Error(error.message);
+  revalidateConfig(eventId);
+  redirect(`/admin/eventos/${eventId}/config?saved=1`);
+}
+
+export async function resetEmailTemplateAction(eventId: string, field: EmailTemplateField) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("events")
+    .update({ [field]: null })
+    .eq("id", eventId);
+  if (error) throw new Error(error.message);
+  revalidateConfig(eventId);
+  redirect(`/admin/eventos/${eventId}/config?saved=1`);
+}

@@ -30,9 +30,14 @@ export default async function RegistroPage({
             ? "La inscripción todavía no está abierta. Volvé a intentarlo más adelante."
             : "La inscripción para este evento ya está cerrada."}
         </p>
-        <Link href="/login" className="mt-8 inline-block text-xs text-neutral-400 hover:text-neutral-600">
-          Acceso para organizadores
-        </Link>
+        <div className="mt-8 flex justify-center gap-4 text-xs text-neutral-400">
+          <Link href="/recuperar" className="hover:text-neutral-600">
+            ¿Ya te inscribiste? Recuperar mi link
+          </Link>
+          <Link href="/login" className="hover:text-neutral-600">
+            Acceso para organizadores
+          </Link>
+        </div>
       </main>
     );
   }
@@ -65,8 +70,11 @@ export default async function RegistroPage({
         startingPoints={startingPoints ?? []}
       />
 
-      <footer className="mt-10 text-center">
-        <Link href="/login" className="text-xs text-neutral-400 hover:text-neutral-600">
+      <footer className="mt-10 flex justify-center gap-4 text-xs text-neutral-400">
+        <Link href="/recuperar" className="hover:text-neutral-600">
+          ¿Ya te inscribiste? Recuperar mi link
+        </Link>
+        <Link href="/login" className="hover:text-neutral-600">
           Acceso para organizadores
         </Link>
       </footer>

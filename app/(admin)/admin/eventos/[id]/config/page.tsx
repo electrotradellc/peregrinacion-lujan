@@ -3,7 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import type { EventRow, StartingPointRow, BusRow, StopRow, BusCaptainAssignmentRow, ProfileRow } from "@/lib/types";
 import { CollapsibleAddForm } from "@/components/admin/CollapsibleAddForm";
 import { StopListItem } from "@/components/admin/StopListItem";
+import { EmailTemplateSection } from "@/components/admin/EmailTemplateSection";
 import { buildEmailPreviews } from "@/lib/email/preview";
+import {
+  DEFAULT_REGISTRATION_PENDING_TEMPLATE,
+  DEFAULT_PAYMENT_CONFIRMED_TEMPLATE,
+  REGISTRATION_PENDING_TAGS,
+  PAYMENT_CONFIRMED_TAGS,
+} from "@/lib/email/registrationEmails";
 import {
   updateEventSettingsAction,
   addStartingPointAction,
@@ -13,6 +20,8 @@ import {
   addStopAction,
   updateStopAction,
   deleteStopAction,
+  updateEmailTemplateAction,
+  resetEmailTemplateAction,
 } from "./actions";
 
 const inputClass = "mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm";
@@ -393,36 +402,37 @@ export default async function EventConfigPage({
       <section className={cardClass}>
         <h2 className="font-semibold">Emails automáticos</h2>
         <p className="text-sm text-neutral-600">
-          Estos son los dos únicos emails que manda la app sola, con datos de ejemplo pero el
-          texto real (instrucciones de pago, nombre del evento, etc. ya son los que cargaste
-          arriba). Ambos van a la casilla que cargó el peregrino al inscribirse.
+          Estos son los dos únicos emails que manda la app sola — ambos a la casilla que cargó
+          el peregrino al inscribirse. El texto es editable; usá las variables entre llaves
+          dobles para insertar datos de cada inscripción.
         </p>
 
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold">1. Al inscribirse</h3>
-          <p className="text-xs text-neutral-500">
-            Asunto: <span className="font-mono">{emailPreviews.registrationPending.subject}</span>
-          </p>
-          <pre className="whitespace-pre-wrap rounded-md border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-700">
-            {emailPreviews.registrationPending.text}
-          </pre>
-        </div>
+        <EmailTemplateSection
+          title="1. Al inscribirse"
+          subject={emailPreviews.registrationPending.subject}
+          template={event.email_registration_pending_template ?? DEFAULT_REGISTRATION_PENDING_TEMPLATE}
+          tags={REGISTRATION_PENDING_TAGS}
+          preview={emailPreviews.registrationPending.text}
+          updateAction={updateEmailTemplateAction.bind(null, id, "email_registration_pending_template")}
+          resetAction={resetEmailTemplateAction.bind(null, id, "email_registration_pending_template")}
+        />
 
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold">2. Al marcar la inscripción como pagada</h3>
-          <p className="text-xs text-neutral-500">
-            Asunto: <span className="font-mono">{emailPreviews.paymentConfirmed.subject}</span>
-          </p>
-          <pre className="whitespace-pre-wrap rounded-md border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-700">
-            {emailPreviews.paymentConfirmed.text}
-          </pre>
-        </div>
+        <EmailTemplateSection
+          title="2. Al marcar la inscripción como pagada"
+          subject={emailPreviews.paymentConfirmed.subject}
+          template={event.email_payment_confirmed_template ?? DEFAULT_PAYMENT_CONFIRMED_TEMPLATE}
+          tags={PAYMENT_CONFIRMED_TAGS}
+          preview={emailPreviews.paymentConfirmed.text}
+          updateAction={updateEmailTemplateAction.bind(null, id, "email_payment_confirmed_template")}
+          resetAction={resetEmailTemplateAction.bind(null, id, "email_payment_confirmed_template")}
+        />
 
         <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
           Ojo: asignar el micro (en Inscripciones) <strong>no dispara ningún email por sí solo</strong>.
-          El micro solo aparece mencionado si ya estaba asignado en el momento de confirmar el
-          pago (email #2). Si lo asignás después, el peregrino no se entera por mail — se lo
-          tenés que avisar por WhatsApp o revisando su link en /mi-inscripcion.
+          La variable <span className="font-mono">{"{{estado_micro}}"}</span> del email #2 solo
+          menciona el micro si ya estaba asignado en el momento de confirmar el pago. Si lo
+          asignás después, el peregrino no se entera por mail — se lo tenés que avisar por
+          WhatsApp o revisando su link en /mi-inscripcion.
         </p>
       </section>
     </div>
