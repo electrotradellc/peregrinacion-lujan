@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { RegistrationRow, StartingPointRow, EventAuditLogRow, ProfileRow } from "@/lib/types";
 import { updateRegistrationAction, setRegistrationStatusAction } from "./actions";
 import { DeleteRegistrationButton } from "@/components/admin/DeleteRegistrationButton";
+import { magicLinkPath } from "@/lib/magicLink";
 
 const inputClass = "mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm";
 const cardClass = "rounded-lg border border-neutral-200 bg-white p-4 space-y-4";
@@ -67,6 +68,13 @@ export default async function RegistrationDetailPage({
           </p>
         </div>
         <div className="flex gap-2">
+          <a
+            href={magicLinkPath(registrationId)}
+            target="_blank"
+            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100"
+          >
+            Ver su página (/mi-inscripcion)
+          </a>
           {registration.status === "pending_payment" && (
             <form action={setRegistrationStatusAction.bind(null, id, registrationId, "confirmed")}>
               <button className="rounded-md bg-green-700 px-3 py-1.5 text-sm text-white">
