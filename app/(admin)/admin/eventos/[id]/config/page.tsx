@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { EventRow, StartingPointRow, BusRow, StopRow, BusCaptainAssignmentRow, ProfileRow } from "@/lib/types";
 import { CollapsibleAddForm } from "@/components/admin/CollapsibleAddForm";
 import { StopListItem } from "@/components/admin/StopListItem";
+import { buildEmailPreviews } from "@/lib/email/preview";
 import {
   updateEventSettingsAction,
   addStartingPointAction,
@@ -73,6 +74,8 @@ export default async function EventConfigPage({
       captainProfiles?.find((p) => p.id === a.profile_id) ?? null,
     ]),
   );
+
+  const emailPreviews = buildEmailPreviews(event);
 
   return (
     <div className="space-y-8">
@@ -385,6 +388,42 @@ export default async function EventConfigPage({
             </button>
           </form>
         </CollapsibleAddForm>
+      </section>
+
+      <section className={cardClass}>
+        <h2 className="font-semibold">Emails automáticos</h2>
+        <p className="text-sm text-neutral-600">
+          Estos son los dos únicos emails que manda la app sola, con datos de ejemplo pero el
+          texto real (instrucciones de pago, nombre del evento, etc. ya son los que cargaste
+          arriba). Ambos van a la casilla que cargó el peregrino al inscribirse.
+        </p>
+
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold">1. Al inscribirse</h3>
+          <p className="text-xs text-neutral-500">
+            Asunto: <span className="font-mono">{emailPreviews.registrationPending.subject}</span>
+          </p>
+          <pre className="whitespace-pre-wrap rounded-md border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-700">
+            {emailPreviews.registrationPending.text}
+          </pre>
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold">2. Al marcar la inscripción como pagada</h3>
+          <p className="text-xs text-neutral-500">
+            Asunto: <span className="font-mono">{emailPreviews.paymentConfirmed.subject}</span>
+          </p>
+          <pre className="whitespace-pre-wrap rounded-md border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-700">
+            {emailPreviews.paymentConfirmed.text}
+          </pre>
+        </div>
+
+        <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Ojo: asignar el micro (en Inscripciones) <strong>no dispara ningún email por sí solo</strong>.
+          El micro solo aparece mencionado si ya estaba asignado en el momento de confirmar el
+          pago (email #2). Si lo asignás después, el peregrino no se entera por mail — se lo
+          tenés que avisar por WhatsApp o revisando su link en /mi-inscripcion.
+        </p>
       </section>
     </div>
   );

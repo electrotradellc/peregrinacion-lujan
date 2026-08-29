@@ -29,11 +29,13 @@ const SIGNATURE = "Muchas gracias!\nSaludos.\n\nGrupo de Apoyo Luján\nParroquia
 // Se dispara al terminar de inscribirse (registration en pending_payment).
 // Confirma la recepción, repite los datos cargados (para que el peregrino
 // pueda detectar un error de tipeo) y las instrucciones de pago.
-export async function sendRegistrationPendingEmail(
+// Separado de sendRegistrationPendingEmail para poder previsualizar el
+// texto exacto (Config → Emails automáticos) sin mandar nada de verdad.
+export function buildRegistrationPendingEmail(
   registration: RegistrationRow,
   event: EventRow,
   startingPoint: StartingPointRow | null,
-) {
+): { subject: string; text: string } {
   const link = `${siteUrl()}${magicLinkPath(registration.id)}`;
 
   const dataSummary = [
@@ -76,20 +78,25 @@ Podés ver el estado de tu inscripción en cualquier momento acá: ${link}
 
 ${SIGNATURE}`;
 
-  await sendEmail({
-    to: registration.email,
-    subject: `Inscripción recibida — ${event.name}`,
-    text,
-  });
+  return { subject: `Inscripción recibida — ${event.name}`, text };
+}
+
+export async function sendRegistrationPendingEmail(
+  registration: RegistrationRow,
+  event: EventRow,
+  startingPoint: StartingPointRow | null,
+) {
+  const { subject, text } = buildRegistrationPendingEmail(registration, event, startingPoint);
+  await sendEmail({ to: registration.email, subject, text });
 }
 
 // Se dispara cuando el admin marca la inscripción como pagada.
-export async function sendPaymentConfirmedEmail(
+export function buildPaymentConfirmedEmail(
   registration: RegistrationRow,
   event: EventRow,
   startingPoint: StartingPointRow | null,
   bus: BusRow | null,
-) {
+): { subject: string; text: string } {
   const link = `${siteUrl()}${magicLinkPath(registration.id)}`;
 
   const busLine = bus
@@ -106,9 +113,15 @@ Podés ver el estado de tu inscripción en cualquier momento acá: ${link}
 
 ${SIGNATURE}`;
 
-  await sendEmail({
-    to: registration.email,
-    subject: `Inscripción confirmada — ${event.name}`,
-    text,
-  });
+  return { subject: `Inscripción confirmada — ${event.name}`, text };
+}
+
+export async function sendPaymentConfirmedEmail(
+  registration: RegistrationRow,
+  event: EventRow,
+  startingPoint: StartingPointRow | null,
+  bus: BusRow | null,
+) {
+  const { subject, text } = buildPaymentConfirmedEmail(registration, event, startingPoint, bus);
+  await sendEmail({ to: registration.email, subject, text });
 }
