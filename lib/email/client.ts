@@ -47,6 +47,11 @@ export async function sendEmail(params: { to: string; subject: string; text: str
   await transporter.sendMail({
     from: `"Grupo de Apoyo Luján - Parroquia San Isidro Labrador" <${user}>`,
     to: params.to,
+    // Copia a la misma casilla que manda el mail — así queda un aviso en la
+    // bandeja de entrada (además de en "Enviados") de cada inscripción
+    // nueva, pago confirmado, etc. La app no tiene ningún otro mecanismo
+    // de notificación al admin.
+    bcc: user,
     subject: params.subject,
     text: params.text,
   });
