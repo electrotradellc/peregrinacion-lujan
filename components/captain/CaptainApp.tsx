@@ -134,7 +134,11 @@ export function CaptainApp({
         <div className="mt-2 flex items-center justify-between text-xs text-neutral-500">
           <span>
             Listado sincronizado:{" "}
-            {lastRosterSync ? new Date(lastRosterSync).toLocaleTimeString("es-AR") : "—"}
+            {lastRosterSync
+              ? new Date(lastRosterSync).toLocaleTimeString("es-AR", {
+                  timeZone: "America/Argentina/Buenos_Aires",
+                })
+              : "—"}
           </span>
           <div className="flex gap-2">
             <button

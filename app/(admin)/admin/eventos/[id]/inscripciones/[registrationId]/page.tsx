@@ -64,6 +64,7 @@ export default async function RegistrationDetailPage({
               year: "numeric",
               hour: "2-digit",
               minute: "2-digit",
+              timeZone: "America/Argentina/Buenos_Aires",
             })}
           </p>
         </div>
@@ -127,7 +128,9 @@ export default async function RegistrationDetailPage({
           {(auditLog ?? []).map((entry) => (
             <li key={entry.id}>
               {auditActionLabel[entry.action] ?? entry.action} — {actorName(entry.actor_id)} —{" "}
-              {new Date(entry.created_at).toLocaleString("es-AR")}
+              {new Date(entry.created_at).toLocaleString("es-AR", {
+                timeZone: "America/Argentina/Buenos_Aires",
+              })}
             </li>
           ))}
           {(auditLog ?? []).length === 0 && (

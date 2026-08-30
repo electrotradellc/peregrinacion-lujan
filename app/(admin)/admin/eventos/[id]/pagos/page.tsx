@@ -45,7 +45,11 @@ export default async function PagosPage({ params }: { params: Promise<{ id: stri
                 <td className="px-4 py-2">{p.status}</td>
                 <td className="px-4 py-2">${p.amount ?? "-"}</td>
                 <td className="px-4 py-2">{p.mp_payment_id ?? "-"}</td>
-                <td className="px-4 py-2">{new Date(p.created_at).toLocaleString("es-AR")}</td>
+                <td className="px-4 py-2">
+                  {new Date(p.created_at).toLocaleString("es-AR", {
+                    timeZone: "America/Argentina/Buenos_Aires",
+                  })}
+                </td>
               </tr>
             ))}
             {(payments ?? []).length === 0 && (
