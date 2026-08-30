@@ -46,6 +46,16 @@ export async function GET() {
       messageId: info.messageId,
     });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        debugUser: user,
+        debugUserLength: user.length,
+        debugPassLength: pass.length,
+        debugPassFirstLast: `${pass.slice(0, 2)}...${pass.slice(-2)}`,
+        debugPassHasWhitespace: /\s/.test(pass),
+      },
+      { status: 500 },
+    );
   }
 }
