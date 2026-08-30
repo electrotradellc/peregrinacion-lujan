@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import type { RegistrationRow, StartingPointRow, BusRow, BusAssignmentRow } from "@/lib/types";
+import type { RegistrationRow, StartingPointRow, BusRow, BusAssignmentRow, EventRow } from "@/lib/types";
 import { DeleteRegistrationButton } from "@/components/admin/DeleteRegistrationButton";
 import { AutoSubmitSelect } from "@/components/admin/AutoSubmitSelect";
 import { AutoSubmitCheckbox } from "@/components/admin/AutoSubmitCheckbox";
 import { assignToBusAction } from "@/lib/actions/busAssignments";
 import { setReturnsIndependentlyAction } from "@/lib/actions/registrations";
+import { confirmBusAssignmentsAction, reopenBusAssignmentsAction } from "./actions";
 
 const statusLabel: Record<string, string> = {
   pending_payment: "Pendiente de pago",
@@ -61,7 +62,8 @@ export default async function InscripcionesPage({
   const filters = await searchParams;
   const supabase = await createClient();
 
-  const [{ data: startingPoints }, { data: buses }] = await Promise.all([
+  const [{ data: event }, { data: startingPoints }, { data: buses }] = await Promise.all([
+    supabase.from("events").select("*").eq("id", id).single<EventRow>(),
     supabase.from("starting_points").select("*").eq("event_id", id).returns<StartingPointRow[]>(),
     supabase.from("buses").select("*").eq("event_id", id).order("bus_number").returns<BusRow[]>(),
   ]);
@@ -82,6 +84,10 @@ export default async function InscripcionesPage({
       ?.bus_id ?? "";
   const countInBus = (busId: string, direction: "outbound" | "return") =>
     (assignments ?? []).filter((a) => a.bus_id === busId && a.direction === direction).length;
+
+  const unassignedConfirmedCount = (registrationsRaw ?? []).filter(
+    (r) => r.status === "confirmed" && !assignedBus(r.id, "outbound"),
+  ).length;
 
   let registrations = registrationsRaw ?? [];
   if (filters.q) {
@@ -137,6 +143,42 @@ export default async function InscripcionesPage({
           Exportar CSV
         </a>
       </div>
+
+      {event?.bus_assignments_confirmed_at ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-green-50 px-4 py-2 text-sm text-green-800">
+          <span>
+            ✓ Asignación de micros confirmada el{" "}
+            {new Date(event.bus_assignments_confirmed_at).toLocaleString("es-AR", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+            . Los inscriptos ya pueden ver su micro y contactar a su capitán en /mi-inscripcion.
+          </span>
+          <form action={reopenBusAssignmentsAction.bind(null, id)}>
+            <button className="rounded-md border border-green-300 px-3 py-1 text-xs font-medium hover:bg-green-100">
+              Reabrir asignación
+            </button>
+          </form>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-amber-50 px-4 py-2 text-sm text-amber-800">
+          <span>
+            La asignación de micros todavía no está confirmada — los inscriptos no ven su micro
+            ni pueden contactar a su capitán hasta que confirmes.
+            {unassignedConfirmedCount > 0 && (
+              <> Hay {unassignedConfirmedCount} confirmado{unassignedConfirmedCount === 1 ? "" : "s"} sin micro de ida asignado.</>
+            )}
+          </span>
+          <form action={confirmBusAssignmentsAction.bind(null, id)}>
+            <button className="rounded-md bg-brand-ink px-3 py-1.5 text-xs font-semibold text-white">
+              Confirmar asignación de micros
+            </button>
+          </form>
+        </div>
+      )}
 
       <form className="flex flex-wrap gap-3 text-sm">
         <input

@@ -62,6 +62,8 @@ export default async function MiInscripcionPage({
       .maybeSingle<BusAssignmentRow>(),
   ]);
 
+  const assignmentsConfirmed = Boolean(event?.bus_assignments_confirmed_at);
+
   let bus: BusRow | null = null;
   let captainWhatsapp: string | null = null;
   if (assignment) {
@@ -105,14 +107,15 @@ export default async function MiInscripcionPage({
             {startingPoint.presentation_time.slice(0, 5)}hs en {startingPoint.presentation_location}.
           </p>
         )}
-        {bus ? (
+        {bus && assignmentsConfirmed ? (
           <p className="mt-1 text-sm text-neutral-600">
             Micro asignado (ida): <strong>Micro {bus.bus_number}</strong>
           </p>
         ) : (
           registration.status === "confirmed" && (
             <p className="mt-1 text-sm text-neutral-500">
-              Todavía no te asignaron un micro — te va a aparecer acá.
+              Todavía estamos terminando de armar la lista de micros — en cuanto esté lista vas
+              a ver acá tu micro asignado.
             </p>
           )
         )}
@@ -152,7 +155,7 @@ export default async function MiInscripcionPage({
 
       {registration.status === "confirmed" && (
         <div className="mt-4 flex flex-col gap-3">
-          {captainWhatsapp && (
+          {assignmentsConfirmed && captainWhatsapp && (
             <a
               href={whatsappLink(
                 captainWhatsapp,
@@ -164,7 +167,7 @@ export default async function MiInscripcionPage({
               Chatear con tu referente por WhatsApp
             </a>
           )}
-          {event?.captains_coordinator_whatsapp && (
+          {assignmentsConfirmed && event?.captains_coordinator_whatsapp && (
             <a
               href={whatsappLink(
                 event.captains_coordinator_whatsapp,

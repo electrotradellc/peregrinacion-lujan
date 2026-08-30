@@ -37,6 +37,7 @@ export interface EventRow {
   captains_coordinator_whatsapp: string | null;
   email_registration_pending_template: string | null;
   email_payment_confirmed_template: string | null;
+  bus_assignments_confirmed_at: string | null;
   terms_and_conditions: string;
   terms_version: string;
   pending_payment_expiry_days: number;
