@@ -25,10 +25,24 @@ export default function SetPasswordPage() {
       }
     });
 
-    // por si el evento ya disparó antes de montar el listener
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
-    });
+    // El cliente de @supabase/ssr (pensado para sesión por cookie) no
+    // siempre detecta solo el #access_token que viene en el link de
+    // invitación/recuperación — lo leemos a mano y abrimos la sesión
+    // nosotros si hace falta.
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const accessToken = hash.get("access_token");
+    const refreshToken = hash.get("refresh_token");
+    if (accessToken && refreshToken) {
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ data }) => {
+        if (data.session) setReady(true);
+        window.history.replaceState(null, "", window.location.pathname);
+      });
+    } else {
+      // por si el evento ya disparó antes de montar el listener
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) setReady(true);
+      });
+    }
 
     return () => listener.subscription.unsubscribe();
   }, []);
