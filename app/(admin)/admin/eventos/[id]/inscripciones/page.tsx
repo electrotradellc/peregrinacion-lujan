@@ -7,6 +7,7 @@ import { AutoSubmitCheckbox } from "@/components/admin/AutoSubmitCheckbox";
 import { assignToBusAction } from "@/lib/actions/busAssignments";
 import { setReturnsIndependentlyAction } from "@/lib/actions/registrations";
 import { confirmBusAssignmentsAction, reopenBusAssignmentsAction } from "./actions";
+import { calculateAge } from "@/lib/age";
 
 const statusLabel: Record<string, string> = {
   pending_payment: "Pendiente de pago",
@@ -262,10 +263,16 @@ export default async function InscripcionesPage({
             {registrations.map((r) => {
               const spBuses = (buses ?? []).filter((b) => b.starting_point_id === r.starting_point_id);
               const canAssign = r.status === "confirmed";
+              const age = event ? calculateAge(r.birth_date, event.event_date) : null;
               return (
                 <tr key={r.id}>
                   <td className="px-4 py-2">
                     {r.last_name}, {r.first_name}
+                    {age !== null && age < 18 && (
+                      <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
+                        Menor ({age})
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-2">{r.dni}</td>
                   <td className="px-4 py-2">{spName(r.starting_point_id)}</td>

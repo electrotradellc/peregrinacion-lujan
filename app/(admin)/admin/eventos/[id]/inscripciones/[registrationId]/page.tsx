@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { RegistrationRow, StartingPointRow, EventAuditLogRow, ProfileRow } from "@/lib/types";
+import type { RegistrationRow, StartingPointRow, EventAuditLogRow, ProfileRow, EventRow } from "@/lib/types";
 import { updateRegistrationAction, setRegistrationStatusAction } from "./actions";
 import { DeleteRegistrationButton } from "@/components/admin/DeleteRegistrationButton";
 import { magicLinkPath } from "@/lib/magicLink";
+import { calculateAge } from "@/lib/age";
 
 const inputClass = "mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm";
 const cardClass = "rounded-lg border border-neutral-200 bg-white p-4 space-y-4";
@@ -24,23 +25,28 @@ export default async function RegistrationDetailPage({
   const { id, registrationId } = await params;
   const supabase = await createClient();
 
-  const [{ data: registration }, { data: startingPoints }, { data: auditLog }] = await Promise.all([
-    supabase
-      .from("registrations")
-      .select("*")
-      .eq("id", registrationId)
-      .single<RegistrationRow>(),
-    supabase.from("starting_points").select("*").eq("event_id", id).returns<StartingPointRow[]>(),
-    supabase
-      .from("event_audit_log")
-      .select("*")
-      .eq("entity_table", "registrations")
-      .eq("entity_id", registrationId)
-      .order("created_at", { ascending: false })
-      .returns<EventAuditLogRow[]>(),
-  ]);
+  const [{ data: registration }, { data: startingPoints }, { data: auditLog }, { data: event }] =
+    await Promise.all([
+      supabase
+        .from("registrations")
+        .select("*")
+        .eq("id", registrationId)
+        .single<RegistrationRow>(),
+      supabase.from("starting_points").select("*").eq("event_id", id).returns<StartingPointRow[]>(),
+      supabase
+        .from("event_audit_log")
+        .select("*")
+        .eq("entity_table", "registrations")
+        .eq("entity_id", registrationId)
+        .order("created_at", { ascending: false })
+        .returns<EventAuditLogRow[]>(),
+      supabase.from("events").select("*").eq("id", id).single<EventRow>(),
+    ]);
 
   if (!registration) notFound();
+
+  const age = event ? calculateAge(registration.birth_date, event.event_date) : null;
+  const isMinor = age !== null && age < 18;
 
   const actorIds = [...new Set((auditLog ?? []).map((a) => a.actor_id).filter(Boolean))] as string[];
   const { data: actors } = actorIds.length
@@ -55,6 +61,12 @@ export default async function RegistrationDetailPage({
         <div>
           <h1 className="text-xl font-semibold">
             {registration.last_name}, {registration.first_name}
+            {isMinor && (
+              <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs text-amber-800">
+                Menor de edad — {age} años el {event?.event_date}
+                {age !== null && age <= 15 && " · necesita ir acompañado por un adulto"}
+              </span>
+            )}
           </h1>
           <p className="text-sm text-neutral-500">
             DNI {registration.dni} · Estado: {registration.status} · Inscripto el{" "}
@@ -164,6 +176,15 @@ export default async function RegistrationDetailPage({
           <div>
             <label className="text-sm font-medium">Email</label>
             <input name="email" defaultValue={registration.email} className={inputClass} />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Fecha de nacimiento</label>
+            <input
+              name="birth_date"
+              type="date"
+              defaultValue={registration.birth_date}
+              className={inputClass}
+            />
           </div>
           <div>
             <label className="text-sm font-medium">Punto de partida</label>

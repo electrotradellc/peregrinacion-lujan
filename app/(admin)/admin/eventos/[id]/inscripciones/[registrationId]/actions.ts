@@ -24,6 +24,7 @@ export async function updateRegistrationAction(
       dni: String(formData.get("dni")),
       phone: String(formData.get("phone")),
       email: String(formData.get("email")),
+      birth_date: String(formData.get("birth_date")),
       emergency_contact_name: String(formData.get("emergency_contact_name")),
       emergency_contact_phone: String(formData.get("emergency_contact_phone")),
       returns_independently: bool("returns_independently"),
