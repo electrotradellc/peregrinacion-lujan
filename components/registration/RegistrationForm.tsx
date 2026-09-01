@@ -139,12 +139,10 @@ export function RegistrationForm({
             className={inputClass}
             type="file"
             accept="image/*"
-            capture="environment"
             onChange={(e) => setDniPhoto(e.target.files?.[0] ?? null)}
           />
           <p className="mt-1 text-xs text-neutral-500">
-            En el celular esto abre la cámara directamente — también podés elegir una foto ya
-            existente.
+            Podés sacar una foto nueva o elegir una que ya tengas guardada.
           </p>
           {fileErrors.dni && <p className={errorClass}>{fileErrors.dni}</p>}
         </div>
@@ -212,7 +210,6 @@ export function RegistrationForm({
                   className={inputClass}
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   onChange={(e) => setInsuranceCardPhoto(e.target.files?.[0] ?? null)}
                 />
                 {fileErrors.insurance && <p className={errorClass}>{fileErrors.insurance}</p>}
