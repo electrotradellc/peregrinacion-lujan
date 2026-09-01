@@ -15,6 +15,54 @@ const inputClass =
 const labelClass = "block text-sm font-medium text-neutral-800";
 const errorClass = "mt-1 text-sm text-red-600";
 const sectionClass = "rounded-lg border border-neutral-200 p-4 space-y-4";
+const photoButtonClass =
+  "cursor-pointer rounded-md border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50";
+
+// Botones separados en vez de un solo <input type=file> — dejar que el
+// picker nativo decida si ofrece cámara es poco confiable entre navegadores
+// móviles: con `capture` algunos abren la cámara y esconden la galería, sin
+// `capture` otros no ofrecen la cámara. Cada botón fuerza explícitamente un
+// origen.
+function PhotoField({
+  label,
+  file,
+  onChange,
+  error,
+}: {
+  label: string;
+  file: File | null;
+  onChange: (file: File | null) => void;
+  error?: string;
+}) {
+  return (
+    <div>
+      <label className={labelClass}>{label}</label>
+      <div className="mt-1 flex flex-wrap gap-2">
+        <label className={photoButtonClass}>
+          Sacar foto
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+          />
+        </label>
+        <label className={photoButtonClass}>
+          Elegir de la galería
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+          />
+        </label>
+      </div>
+      {file && <p className="mt-1 text-xs text-neutral-500">Seleccionado: {file.name}</p>}
+      {error && <p className={errorClass}>{error}</p>}
+    </div>
+  );
+}
 
 export function RegistrationForm({
   event,
@@ -133,19 +181,12 @@ export function RegistrationForm({
             {errors.birthDate && <p className={errorClass}>{errors.birthDate.message}</p>}
           </div>
         </div>
-        <div>
-          <label className={labelClass}>Foto del DNI (frente)</label>
-          <input
-            className={inputClass}
-            type="file"
-            accept="image/*"
-            onChange={(e) => setDniPhoto(e.target.files?.[0] ?? null)}
-          />
-          <p className="mt-1 text-xs text-neutral-500">
-            Podés sacar una foto nueva o elegir una que ya tengas guardada.
-          </p>
-          {fileErrors.dni && <p className={errorClass}>{fileErrors.dni}</p>}
-        </div>
+        <PhotoField
+          label="Foto del DNI (frente)"
+          file={dniPhoto}
+          onChange={setDniPhoto}
+          error={fileErrors.dni}
+        />
       </section>
 
       <section className={sectionClass}>
@@ -204,16 +245,12 @@ export function RegistrationForm({
                   <p className={errorClass}>{errors.healthInsuranceMemberNumber.message}</p>
                 )}
               </div>
-              <div>
-                <label className={labelClass}>Foto del carnet</label>
-                <input
-                  className={inputClass}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setInsuranceCardPhoto(e.target.files?.[0] ?? null)}
-                />
-                {fileErrors.insurance && <p className={errorClass}>{fileErrors.insurance}</p>}
-              </div>
+              <PhotoField
+                label="Foto del carnet"
+                file={insuranceCardPhoto}
+                onChange={setInsuranceCardPhoto}
+                error={fileErrors.insurance}
+              />
             </div>
           )}
         </div>
