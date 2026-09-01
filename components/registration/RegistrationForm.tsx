@@ -6,8 +6,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   registrationFieldsSchema,
   validatePhotoFile,
+  toTitleCase,
+  formatPhoneDigits,
   type RegistrationFields,
 } from "@/lib/validation/registrationSchema";
+import type { ChangeEvent } from "react";
+import type { UseFormRegisterReturn } from "react-hook-form";
 import type { EventRow, StartingPointRow } from "@/lib/types";
 
 const inputClass =
@@ -17,6 +21,30 @@ const errorClass = "mt-1 text-sm text-red-600";
 const sectionClass = "rounded-lg border border-neutral-200 p-4 space-y-4";
 const photoButtonClass =
   "cursor-pointer rounded-md border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50";
+
+// Formatea el valor a medida que se escribe (no recién al enviar), para que
+// el usuario vea el resultado final en el campo. `format` no debe cambiar
+// la posición del cursor de forma rara: se restaura a mano porque asignar
+// `input.value` por código puede moverlo solo al final del texto.
+function withLiveFormat(reg: UseFormRegisterReturn, format: (value: string) => string) {
+  return (e: ChangeEvent<HTMLInputElement>) => {
+    const pos = e.target.selectionStart;
+    e.target.value = format(e.target.value);
+    if (pos !== null) e.target.setSelectionRange(pos, pos);
+    reg.onChange(e);
+  };
+}
+
+// El celular se va acortando a medida que se saca el código de país (+54 /
+// 549) — no tiene sentido mantener la posición original del cursor, va al
+// final como en cualquier campo numérico que se autocompleta.
+function withLivePhoneFormat(reg: UseFormRegisterReturn) {
+  return (e: ChangeEvent<HTMLInputElement>) => {
+    e.target.value = formatPhoneDigits(e.target.value);
+    e.target.setSelectionRange(e.target.value.length, e.target.value.length);
+    reg.onChange(e);
+  };
+}
 
 // Botones separados en vez de un solo <input type=file> — dejar que el
 // picker nativo decida si ofrece cámara es poco confiable entre navegadores
@@ -108,6 +136,15 @@ export function RegistrationForm({
     },
   });
 
+  // Se guardan aparte (no inline en el JSX) porque withLiveFormat necesita
+  // el `onChange` original de react-hook-form para poder llamarlo después
+  // de reescribir el valor.
+  const firstNameReg = register("firstName");
+  const lastNameReg = register("lastName");
+  const phoneReg = register("phone");
+  const emailReg = register("email");
+  const emergencyContactPhoneReg = register("emergencyContactPhone");
+
   const onSubmit = async (data: RegistrationFields) => {
     setSubmitError(null);
 
@@ -152,12 +189,20 @@ export function RegistrationForm({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className={labelClass}>Nombre</label>
-            <input className={inputClass} {...register("firstName")} />
+            <input
+              className={inputClass}
+              {...firstNameReg}
+              onChange={withLiveFormat(firstNameReg, toTitleCase)}
+            />
             {errors.firstName && <p className={errorClass}>{errors.firstName.message}</p>}
           </div>
           <div>
             <label className={labelClass}>Apellido</label>
-            <input className={inputClass} {...register("lastName")} />
+            <input
+              className={inputClass}
+              {...lastNameReg}
+              onChange={withLiveFormat(lastNameReg, toTitleCase)}
+            />
             {errors.lastName && <p className={errorClass}>{errors.lastName.message}</p>}
           </div>
           <div>
@@ -167,12 +212,25 @@ export function RegistrationForm({
           </div>
           <div>
             <label className={labelClass}>Celular</label>
-            <input className={inputClass} inputMode="tel" {...register("phone")} />
+            <input
+              className={inputClass}
+              inputMode="tel"
+              {...phoneReg}
+              onChange={withLivePhoneFormat(phoneReg)}
+            />
+            <p className="mt-1 text-xs text-neutral-500">
+              Solo característica y número, sin el 54 (ej: 1123456789).
+            </p>
             {errors.phone && <p className={errorClass}>{errors.phone.message}</p>}
           </div>
           <div>
             <label className={labelClass}>Email</label>
-            <input className={inputClass} type="email" {...register("email")} />
+            <input
+              className={inputClass}
+              type="email"
+              {...emailReg}
+              onChange={withLiveFormat(emailReg, (v) => v.toLowerCase())}
+            />
             {errors.email && <p className={errorClass}>{errors.email.message}</p>}
           </div>
           <div>
@@ -337,7 +395,12 @@ export function RegistrationForm({
           </div>
           <div>
             <label className={labelClass}>Celular</label>
-            <input className={inputClass} inputMode="tel" {...register("emergencyContactPhone")} />
+            <input
+              className={inputClass}
+              inputMode="tel"
+              {...emergencyContactPhoneReg}
+              onChange={withLivePhoneFormat(emergencyContactPhoneReg)}
+            />
             {errors.emergencyContactPhone && (
               <p className={errorClass}>{errors.emergencyContactPhone.message}</p>
             )}

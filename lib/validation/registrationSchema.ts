@@ -8,6 +8,22 @@ import { z } from "zod";
 
 const digitsOnly = (value: string) => value.replace(/\D/g, "");
 
+// Los pilgrims suelen pegar el número con el código de país (+54, 54, +549,
+// 549) porque así lo ven en WhatsApp — acá se saca solo, no hace falta que
+// se den cuenta ni que corrijan un error de validación.
+const stripCountryCode = (value: string) => {
+  if (value.startsWith("549")) return value.slice(3);
+  if (value.startsWith("54")) return value.slice(2);
+  return value;
+};
+
+export const formatPhoneDigits = (raw: string) => stripCountryCode(digitsOnly(raw));
+
+// Nombre Propio: primera letra de cada palabra en mayúscula, resto en
+// minúscula. \p{L} (con flag u) matchea letras con tilde/ñ, no solo a-z.
+export const toTitleCase = (value: string) =>
+  value.toLowerCase().replace(/(^|[\s'-])\p{L}/gu, (match) => match.toUpperCase());
+
 export const dniSchema = z
   .string()
   .trim()
@@ -17,19 +33,19 @@ export const dniSchema = z
 export const phoneSchema = z
   .string()
   .trim()
-  .transform(digitsOnly)
-  .pipe(z.string().min(8, "Ingresá un número de celular válido"));
+  .transform(formatPhoneDigits)
+  .pipe(z.string().min(8, "Ingresá un número de celular válido (característica + número, sin el 54)"));
 
 export const registrationFieldsSchema = z
   .object({
     eventId: z.uuid(),
 
     // datos personales
-    firstName: z.string().trim().min(1, "Ingresá el nombre"),
-    lastName: z.string().trim().min(1, "Ingresá el apellido"),
+    firstName: z.string().trim().min(1, "Ingresá el nombre").transform(toTitleCase),
+    lastName: z.string().trim().min(1, "Ingresá el apellido").transform(toTitleCase),
     dni: dniSchema,
     phone: phoneSchema,
-    email: z.email("Ingresá un email válido"),
+    email: z.email("Ingresá un email válido").transform((v) => v.toLowerCase()),
     birthDate: z.iso.date("Ingresá una fecha de nacimiento válida"),
 
     // obra social
