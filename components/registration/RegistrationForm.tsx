@@ -46,6 +46,36 @@ function withLivePhoneFormat(reg: UseFormRegisterReturn) {
   };
 }
 
+// Las fotos de cámara de un celular actual suelen pesar varios MB — Vercel
+// rechaza el pedido entero (sin llegar a nuestro código) si el body supera
+// ~4.5MB, y eso el usuario lo ve como "no pudimos conectar con el servidor".
+// Se reduce la imagen en el navegador antes de subirla, tanto para no
+// chocar con ese límite como para que suba más rápido con datos móviles.
+// Si el navegador no puede decodificar el formato (ej. HEIC en Chrome), se
+// sube el archivo original tal cual — la validación de tamaño del servidor
+// sigue siendo la última palabra.
+async function compressImage(file: File, maxDimension = 1600, quality = 0.82): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", quality),
+    );
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
 // Botones separados en vez de un solo <input type=file> — dejar que el
 // picker nativo decida si ofrece cámara es poco confiable entre navegadores
 // móviles: con `capture` algunos abren la cámara y esconden la galería, sin
@@ -62,6 +92,19 @@ function PhotoField({
   onChange: (file: File | null) => void;
   error?: string;
 }) {
+  const [compressing, setCompressing] = useState(false);
+
+  const handlePick = async (picked: File | null) => {
+    if (!picked) {
+      onChange(null);
+      return;
+    }
+    setCompressing(true);
+    const compressed = await compressImage(picked);
+    setCompressing(false);
+    onChange(compressed);
+  };
+
   return (
     <div>
       <label className={labelClass}>{label}</label>
@@ -73,7 +116,7 @@ function PhotoField({
             accept="image/*"
             capture="environment"
             className="hidden"
-            onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+            onChange={(e) => handlePick(e.target.files?.[0] ?? null)}
           />
         </label>
         <label className={photoButtonClass}>
@@ -82,11 +125,16 @@ function PhotoField({
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+            onChange={(e) => handlePick(e.target.files?.[0] ?? null)}
           />
         </label>
       </div>
-      {file && <p className="mt-1 text-xs text-neutral-500">Seleccionado: {file.name}</p>}
+      {compressing && <p className="mt-1 text-xs text-neutral-500">Optimizando imagen...</p>}
+      {!compressing && file && (
+        <p className="mt-1 text-xs text-neutral-500">
+          Seleccionado: {file.name} ({Math.round(file.size / 1024)} KB)
+        </p>
+      )}
       {error && <p className={errorClass}>{error}</p>}
     </div>
   );
