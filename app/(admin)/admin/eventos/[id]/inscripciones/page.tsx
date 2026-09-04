@@ -63,11 +63,19 @@ export default async function InscripcionesPage({
   const filters = await searchParams;
   const supabase = await createClient();
 
-  const [{ data: event }, { data: startingPoints }, { data: buses }] = await Promise.all([
-    supabase.from("events").select("*").eq("id", id).single<EventRow>(),
-    supabase.from("starting_points").select("*").eq("event_id", id).returns<StartingPointRow[]>(),
-    supabase.from("buses").select("*").eq("event_id", id).order("bus_number").returns<BusRow[]>(),
-  ]);
+  const [{ data: event }, { data: startingPoints }, { data: buses }, { data: statusCountsRaw }] =
+    await Promise.all([
+      supabase.from("events").select("*").eq("id", id).single<EventRow>(),
+      supabase.from("starting_points").select("*").eq("event_id", id).returns<StartingPointRow[]>(),
+      supabase.from("buses").select("*").eq("event_id", id).order("bus_number").returns<BusRow[]>(),
+      supabase.from("registrations").select("status").eq("event_id", id).returns<{ status: string }[]>(),
+    ]);
+
+  const statusCounts = Object.keys(statusLabel).reduce<Record<string, number>>((acc, status) => {
+    acc[status] = (statusCountsRaw ?? []).filter((r) => r.status === status).length;
+    return acc;
+  }, {});
+  const totalCount = (statusCountsRaw ?? []).length;
 
   let query = supabase.from("registrations").select("*").eq("event_id", id);
   if (filters.status) query = query.eq("status", filters.status);
@@ -143,6 +151,20 @@ export default async function InscripcionesPage({
         >
           Exportar CSV
         </a>
+      </div>
+
+      <div className="flex flex-wrap gap-2 text-sm">
+        <span className="rounded-full bg-neutral-100 px-3 py-1 font-medium text-neutral-700">
+          Total: {totalCount}
+        </span>
+        {Object.entries(statusLabel).map(([status, label]) => (
+          <span
+            key={status}
+            className={`rounded-full px-3 py-1 font-medium ${statusClass[status]}`}
+          >
+            {label}: {statusCounts[status] ?? 0}
+          </span>
+        ))}
       </div>
 
       {event?.bus_assignments_confirmed_at ? (
