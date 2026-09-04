@@ -44,6 +44,40 @@ export async function recordAttendanceAction(params: {
   revalidatePath(`/capitan/${params.eventId}/asistencia`);
 }
 
+// Corrige un toque equivocado (llegada/salida marcada a la persona
+// incorrecta, o dos capitanes marcando al mismo tiempo). No hay política de
+// UPDATE en attendance_checkins a propósito — la corrección es borrar y,
+// si corresponde, volver a marcar de nuevo desde la planilla. RLS decide si
+// el usuario logueado puede borrar esta fila (admin, o capitán de ese
+// micro); si no puede, la propia query no borra nada y esto tira error.
+export async function undoAttendanceAction(params: {
+  eventId: string;
+  checkinId: string;
+  registrationId: string;
+  eventType: CheckinEventType;
+}) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("No autorizado");
+
+  const { error } = await supabase.from("attendance_checkins").delete().eq("id", params.checkinId);
+  if (error) throw new Error(error.message);
+
+  await supabase.from("event_audit_log").insert({
+    event_id: params.eventId,
+    actor_id: user.id,
+    action: "attendance_checkin_undone",
+    entity_table: "attendance_checkins",
+    entity_id: params.checkinId,
+    diff: { registration_id: params.registrationId, event_type: params.eventType },
+  });
+
+  revalidatePath(`/admin/eventos/${params.eventId}/asistencia`);
+  revalidatePath(`/capitan/${params.eventId}/asistencia`);
+}
+
 // Se usa en la parada de presentación (la Parroquia): si alguien no se
 // presenta, lo saca de circulación igual que una cancelación normal — deja
 // de aparecer en Inscripciones, asignación de micros y el resto de las

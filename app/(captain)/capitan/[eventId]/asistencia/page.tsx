@@ -126,6 +126,7 @@ export default async function CaptainAsistenciaPage({
         stopId={stopId}
         roster={roster}
         checkinsAtStop={(checkinsAtStop ?? []).map((c) => ({
+          id: c.id,
           registrationId: c.registration_id,
           eventType: c.event_type,
           recordedAt: c.recorded_at,

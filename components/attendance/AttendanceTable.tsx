@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { recordAttendanceAction, markNoShowAction } from "@/lib/actions/attendance";
+import { recordAttendanceAction, markNoShowAction, undoAttendanceAction } from "@/lib/actions/attendance";
 import type { AssignmentDirection } from "@/lib/types";
 
 export interface AttendanceRosterEntry {
@@ -16,6 +16,7 @@ export interface AttendanceRosterEntry {
 }
 
 export interface AttendanceCheckinEntry {
+  id: string;
   registrationId: string;
   eventType: "arrival" | "departure" | "support_vehicle";
   recordedAt: string;
@@ -124,6 +125,26 @@ export function AttendanceTable({
     startTransition(async () => {
       try {
         await recordAttendanceAction({ eventId, busId, direction, stopId, registrationId, eventType });
+      } finally {
+        setPendingKey(null);
+      }
+    });
+  }
+
+  function undo(checkin: AttendanceCheckinEntry) {
+    if (!window.confirm("¿Deshacer esta marca? Se borra y se puede volver a marcar de nuevo.")) {
+      return;
+    }
+    const key = `${checkin.registrationId}-${checkin.eventType}-undo`;
+    setPendingKey(key);
+    startTransition(async () => {
+      try {
+        await undoAttendanceAction({
+          eventId,
+          checkinId: checkin.id,
+          registrationId: checkin.registrationId,
+          eventType: checkin.eventType,
+        });
       } finally {
         setPendingKey(null);
       }
@@ -239,9 +260,14 @@ export function AttendanceTable({
                   {isPresentationStop ? (
                     <td className="px-3 py-2">
                       {arrival ? (
-                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
-                          Se presentó — {formatTime(arrival.recordedAt)}
-                        </span>
+                        <button
+                          disabled={pending && pendingKey === `${r.registrationId}-arrival-undo`}
+                          onClick={() => undo(arrival)}
+                          title="Tocar para deshacer"
+                          className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800 hover:bg-red-100 hover:text-red-800 disabled:opacity-50"
+                        >
+                          Se presentó — {formatTime(arrival.recordedAt)} ✕
+                        </button>
                       ) : (
                         <div className="flex gap-2">
                           <button
@@ -266,9 +292,14 @@ export function AttendanceTable({
                       {!hideArrival && (
                         <td className="px-3 py-2">
                           {arrival ? (
-                            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
-                              {formatTime(arrival.recordedAt)}
-                            </span>
+                            <button
+                              disabled={pending && pendingKey === `${r.registrationId}-arrival-undo`}
+                              onClick={() => undo(arrival)}
+                              title="Tocar para deshacer"
+                              className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800 hover:bg-red-100 hover:text-red-800 disabled:opacity-50"
+                            >
+                              {formatTime(arrival.recordedAt)} ✕
+                            </button>
                           ) : (
                             <button
                               disabled={pending && pendingKey === `${r.registrationId}-arrival`}
@@ -283,9 +314,14 @@ export function AttendanceTable({
                       {!hideDeparture && (
                         <td className="px-3 py-2">
                           {departure ? (
-                            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
-                              {formatTime(departure.recordedAt)}
-                            </span>
+                            <button
+                              disabled={pending && pendingKey === `${r.registrationId}-departure-undo`}
+                              onClick={() => undo(departure)}
+                              title="Tocar para deshacer"
+                              className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800 hover:bg-red-100 hover:text-red-800 disabled:opacity-50"
+                            >
+                              {formatTime(departure.recordedAt)} ✕
+                            </button>
                           ) : (
                             <button
                               disabled={pending && pendingKey === `${r.registrationId}-departure`}
