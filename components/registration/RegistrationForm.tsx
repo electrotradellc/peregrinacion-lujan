@@ -10,17 +10,74 @@ import {
   formatPhoneDigits,
   type RegistrationFields,
 } from "@/lib/validation/registrationSchema";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 import type { EventRow, StartingPointRow } from "@/lib/types";
 
+const cardClass = "bg-white rounded-3xl p-5 md:p-6 shadow-sm flex flex-col gap-5";
 const inputClass =
-  "mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none";
-const labelClass = "block text-sm font-medium text-neutral-800";
-const errorClass = "mt-1 text-sm text-red-600";
-const sectionClass = "rounded-lg border border-neutral-200 p-4 space-y-4";
+  "h-12 w-full rounded-xl border border-neutral-200 bg-white px-4 text-base text-neutral-900 placeholder:text-neutral-400 shadow-sm focus:outline-none focus:border-terracotta focus:ring-2 focus:ring-terracotta/20 transition-colors";
+const labelClass = "text-sm font-semibold text-neutral-800";
+const errorClass = "text-sm text-danger";
+const helperClass = "text-xs text-neutral-500";
 const photoButtonClass =
-  "cursor-pointer rounded-md border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50";
+  "flex-1 min-w-[130px] h-11 px-3 bg-white hover:bg-mist active:scale-95 text-brand-ink font-semibold text-sm rounded-full flex items-center justify-center gap-2 cursor-pointer shadow-sm border border-neutral-200 transition-all";
+const conditionChipClass =
+  "flex items-center gap-2 p-3 bg-neutral-50 rounded-xl cursor-pointer hover:bg-mist transition-colors text-sm";
+
+function Icon({ name, className = "" }: { name: string; className?: string }) {
+  return <span className={`material-symbols-outlined ${className}`}>{name}</span>;
+}
+
+// Cada sección repite el mismo encabezado (número + título + subtítulo +
+// ícono) — se separa acá para no repetir el markup 4 veces.
+function SectionHeader({
+  step,
+  title,
+  subtitle,
+  icon,
+}: {
+  step: number;
+  title: string;
+  subtitle: string;
+  icon: string;
+}) {
+  return (
+    <div className="flex items-center justify-between pb-1">
+      <div className="flex items-center gap-3">
+        <span className="w-8 h-8 rounded-full bg-mist text-terracotta font-bold flex items-center justify-center shrink-0">
+          {step}
+        </span>
+        <div>
+          <h2 className="font-semibold text-[17px] text-brand-ink leading-tight">{title}</h2>
+          <p className="text-xs text-neutral-500">{subtitle}</p>
+        </div>
+      </div>
+      <Icon name={icon} className="text-neutral-300 text-[22px]" />
+    </div>
+  );
+}
+
+function Field({
+  label,
+  helper,
+  error,
+  children,
+}: {
+  label: string;
+  helper?: string;
+  error?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 min-w-0">
+      <label className={labelClass}>{label}</label>
+      {children}
+      {helper && !error && <p className={helperClass}>{helper}</p>}
+      {error && <p className={errorClass}>{error}</p>}
+    </div>
+  );
+}
 
 // Formatea el valor a medida que se escribe (no recién al enviar), para que
 // el usuario vea el resultado final en el campo. `format` no debe cambiar
@@ -83,11 +140,13 @@ async function compressImage(file: File, maxDimension = 1600, quality = 0.82): P
 // origen.
 function PhotoField({
   label,
+  helper,
   file,
   onChange,
   error,
 }: {
   label: string;
+  helper?: string;
   file: File | null;
   onChange: (file: File | null) => void;
   error?: string;
@@ -106,35 +165,46 @@ function PhotoField({
   };
 
   return (
-    <div>
+    <div className="flex flex-col gap-2">
       <label className={labelClass}>{label}</label>
-      <div className="mt-1 flex flex-wrap gap-2">
-        <label className={photoButtonClass}>
-          Sacar foto
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={(e) => handlePick(e.target.files?.[0] ?? null)}
-          />
-        </label>
-        <label className={photoButtonClass}>
-          Elegir de la galería
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => handlePick(e.target.files?.[0] ?? null)}
-          />
-        </label>
+      <div className="bg-neutral-50 rounded-xl p-4 flex flex-col items-center justify-center text-center gap-3">
+        <div className="w-12 h-12 rounded-full bg-mist text-terracotta flex items-center justify-center">
+          <Icon name="contact_page" className="text-[24px]" />
+        </div>
+        {helper && <p className="text-xs text-neutral-500 max-w-xs">{helper}</p>}
+        <div className="flex flex-wrap items-center justify-center gap-2 w-full max-w-sm">
+          <label className={photoButtonClass}>
+            <Icon name="photo_camera" className="text-[18px]" />
+            Sacar foto
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => handlePick(e.target.files?.[0] ?? null)}
+            />
+          </label>
+          <label className={photoButtonClass}>
+            <Icon name="collections" className="text-[18px]" />
+            Elegir de la galería
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handlePick(e.target.files?.[0] ?? null)}
+            />
+          </label>
+        </div>
+        {compressing && (
+          <p className="text-xs text-neutral-500">Optimizando imagen...</p>
+        )}
+        {!compressing && file && (
+          <div className="inline-flex items-center gap-2 bg-success-bg text-success px-3 py-1.5 rounded-full text-xs font-bold">
+            <Icon name="check_circle" className="text-[16px]" />
+            Seleccionado: {file.name} ({Math.round(file.size / 1024)} KB)
+          </div>
+        )}
       </div>
-      {compressing && <p className="mt-1 text-xs text-neutral-500">Optimizando imagen...</p>}
-      {!compressing && file && (
-        <p className="mt-1 text-xs text-neutral-500">
-          Seleccionado: {file.name} ({Math.round(file.size / 1024)} KB)
-        </p>
-      )}
       {error && <p className={errorClass}>{error}</p>}
     </div>
   );
@@ -231,126 +301,167 @@ export function RegistrationForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <section className={sectionClass}>
-        <h2 className="text-lg font-semibold">Datos personales</h2>
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
+      {/* SECCIÓN 1: DATOS PERSONALES */}
+      <div className={cardClass}>
+        <SectionHeader
+          step={1}
+          title="Datos personales"
+          subtitle="Información para tu credencial oficial de peregrino"
+          icon="badge"
+        />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className={labelClass}>Nombre</label>
+          <Field label="Nombre" error={errors.firstName?.message}>
             <input
               className={inputClass}
+              placeholder="Ej. Juan Martín"
               {...firstNameReg}
               onChange={withLiveFormat(firstNameReg, toTitleCase)}
             />
-            {errors.firstName && <p className={errorClass}>{errors.firstName.message}</p>}
-          </div>
-          <div>
-            <label className={labelClass}>Apellido</label>
+          </Field>
+          <Field label="Apellido" error={errors.lastName?.message}>
             <input
               className={inputClass}
+              placeholder="Ej. Pereyra"
               {...lastNameReg}
               onChange={withLiveFormat(lastNameReg, toTitleCase)}
             />
-            {errors.lastName && <p className={errorClass}>{errors.lastName.message}</p>}
-          </div>
-          <div>
-            <label className={labelClass}>DNI</label>
-            <input className={inputClass} inputMode="numeric" {...register("dni")} />
-            {errors.dni && <p className={errorClass}>{errors.dni.message}</p>}
-          </div>
-          <div>
-            <label className={labelClass}>Celular</label>
+          </Field>
+          <Field label="DNI" error={errors.dni?.message}>
+            <input
+              className={inputClass}
+              inputMode="numeric"
+              placeholder="Sin puntos (ej: 38452123)"
+              {...register("dni")}
+            />
+          </Field>
+          <Field label="Fecha de nacimiento" error={errors.birthDate?.message}>
+            <input className={inputClass} type="date" {...register("birthDate")} />
+          </Field>
+          <Field
+            label="Celular (WhatsApp)"
+            helper="Solo característica y número, sin el 54 (ej: 1123456789)."
+            error={errors.phone?.message}
+          >
             <input
               className={inputClass}
               inputMode="tel"
+              placeholder="11 5489 1234"
               {...phoneReg}
               onChange={withLivePhoneFormat(phoneReg)}
             />
-            <p className="mt-1 text-xs text-neutral-500">
-              Solo característica y número, sin el 54 (ej: 1123456789).
-            </p>
-            {errors.phone && <p className={errorClass}>{errors.phone.message}</p>}
-          </div>
-          <div>
-            <label className={labelClass}>Email</label>
+          </Field>
+          <Field
+            label="Correo electrónico"
+            helper="Te enviaremos tu credencial y link de acceso aquí."
+            error={errors.email?.message}
+          >
             <input
               className={inputClass}
               type="email"
+              placeholder="tunombre@correo.com"
               {...emailReg}
               onChange={withLiveFormat(emailReg, (v) => v.toLowerCase())}
             />
-            {errors.email && <p className={errorClass}>{errors.email.message}</p>}
-          </div>
-          <div>
-            <label className={labelClass}>Fecha de nacimiento</label>
-            <input className={inputClass} type="date" {...register("birthDate")} />
-            {errors.birthDate && <p className={errorClass}>{errors.birthDate.message}</p>}
-          </div>
+          </Field>
         </div>
         <PhotoField
           label="Foto del DNI (frente)"
+          helper="Subí una foto nítida de tu documento — requerido por los seguros de ruta y transporte."
           file={dniPhoto}
           onChange={setDniPhoto}
           error={fileErrors.dni}
         />
-      </section>
+      </div>
 
-      <section className={sectionClass}>
-        <h2 className="text-lg font-semibold">Salida</h2>
-        <div>
-          <label className={labelClass}>¿Desde dónde salís caminando?</label>
-          <select className={inputClass} {...register("startingPointId")}>
-            <option value="">Elegí una opción</option>
-            {startingPoints.map((sp) => (
-              <option key={sp.id} value={sp.id}>
-                {sp.name} — presentarse {sp.presentation_time.slice(0, 5)}hs en{" "}
-                {sp.presentation_location}
-              </option>
-            ))}
-          </select>
-          {errors.startingPointId && (
-            <p className={errorClass}>{errors.startingPointId.message}</p>
-          )}
+      {/* SECCIÓN 2: PUNTO DE PARTIDA Y REGRESO */}
+      <div className={cardClass}>
+        <SectionHeader
+          step={2}
+          title="Punto de partida y regreso"
+          subtitle="¿Desde dónde salís caminando y cómo volvés?"
+          icon="route"
+        />
+        <div className="flex flex-col gap-2">
+          <label className={labelClass}>Elegí tu punto de salida</label>
+          {startingPoints.map((sp) => (
+            <label
+              key={sp.id}
+              className="relative flex items-center gap-3 p-4 bg-neutral-50 hover:bg-mist rounded-xl cursor-pointer transition-colors"
+            >
+              <input
+                type="radio"
+                value={sp.id}
+                className="w-5 h-5 accent-terracotta cursor-pointer"
+                {...register("startingPointId")}
+              />
+              <div className="flex-1 flex items-center justify-between gap-2">
+                <div>
+                  <span className="font-semibold text-sm text-neutral-900 block">{sp.name}</span>
+                  <span className="text-xs text-neutral-500">
+                    Presentarse {sp.presentation_time.slice(0, 5)}hs en {sp.presentation_location}
+                  </span>
+                </div>
+                <Icon name="hiking" className="text-terracotta text-[22px] shrink-0" />
+              </div>
+            </label>
+          ))}
+          {errors.startingPointId && <p className={errorClass}>{errors.startingPointId.message}</p>}
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" {...register("returnsIndependently")} />
-          Vuelvo por mis propios medios (no necesito micro de vuelta)
+        <label className="p-4 rounded-xl bg-mist/60 flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" className="mt-1 w-5 h-5 accent-terracotta" {...register("returnsIndependently")} />
+          <span>
+            <span className="font-semibold text-sm text-neutral-900 block">
+              Vuelvo por mis propios medios
+            </span>
+            <span className="text-xs text-neutral-500">
+              Marcá esta casilla si no vas a utilizar los micros de regreso de la parroquia desde
+              Luján a San Isidro.
+            </span>
+          </span>
         </label>
-      </section>
+      </div>
 
-      <section className={sectionClass}>
-        <h2 className="text-lg font-semibold">Información para el equipo médico</h2>
-        <p className="text-sm text-neutral-600">
-          Marcá lo que corresponda. Esta información solo la ve el equipo organizador y el
-          referente de tu micro, para poder asistirte mejor ante una emergencia.
-        </p>
+      {/* SECCIÓN 3: INFORMACIÓN MÉDICA & CUIDADO COMUNITARIO */}
+      <div className={cardClass}>
+        <SectionHeader
+          step={3}
+          title="Cuidado y equipo médico"
+          subtitle="Para cuidarte y asistirte de forma inmediata si lo necesitás"
+          icon="health_and_safety"
+        />
+        <div className="bg-info-bg text-info p-3 rounded-xl flex items-start gap-2">
+          <Icon name="lock" className="text-[20px] shrink-0 mt-0.5" />
+          <p className="text-xs text-neutral-600 leading-relaxed">
+            <strong className="text-neutral-900">Privacidad asegurada:</strong> Esta información
+            es estrictamente confidencial. Solo la visualiza el equipo de coordinación médica y
+            el referente de tu micro.
+          </p>
+        </div>
 
-        <div className="space-y-4 border-b border-neutral-200 pb-4">
-          <label className="flex items-center gap-2 text-sm">
+        <div className="flex flex-col gap-3 bg-neutral-50 p-4 rounded-xl">
+          <label className="flex items-center gap-3 cursor-pointer select-none text-sm">
             <input
               type="checkbox"
+              className="w-5 h-5 accent-terracotta"
               {...register("hasHealthInsurance", {
                 onChange: (e) => setHasHealthInsurance(e.target.checked),
               })}
             />
-            Tengo obra social
+            <span className="font-semibold text-neutral-900">Cuento con Obra Social / Prepaga</span>
           </label>
           {hasHealthInsurance && (
-            <div className="space-y-4">
-              <div>
-                <label className={labelClass}>¿Cuál?</label>
-                <input className={inputClass} {...register("healthInsuranceProvider")} />
-                {errors.healthInsuranceProvider && (
-                  <p className={errorClass}>{errors.healthInsuranceProvider.message}</p>
-                )}
-              </div>
-              <div>
-                <label className={labelClass}>Número de afiliado</label>
+            <div className="flex flex-col gap-3 pt-1">
+              <Field label="¿Cuál?" error={errors.healthInsuranceProvider?.message}>
+                <input
+                  className={inputClass}
+                  placeholder="Ej: OSDE, Swiss Medical, PAMI, etc."
+                  {...register("healthInsuranceProvider")}
+                />
+              </Field>
+              <Field label="Número de afiliado" error={errors.healthInsuranceMemberNumber?.message}>
                 <input className={inputClass} {...register("healthInsuranceMemberNumber")} />
-                {errors.healthInsuranceMemberNumber && (
-                  <p className={errorClass}>{errors.healthInsuranceMemberNumber.message}</p>
-                )}
-              </div>
+              </Field>
               <PhotoField
                 label="Foto del carnet"
                 file={insuranceCardPhoto}
@@ -361,126 +472,130 @@ export function RegistrationForm({
           )}
         </div>
 
-        <div className="space-y-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              {...register("hasAllergies", { onChange: (e) => setHasAllergies(e.target.checked) })}
-            />
-            Alergias
-          </label>
+        <div className="flex flex-col gap-2">
+          <span className={labelClass}>Condiciones médicas o antecedentes (marcar las que correspondan):</span>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <label className={conditionChipClass}>
+              <input type="checkbox" className="w-4 h-4 accent-terracotta" {...register("hasAllergies", { onChange: (e) => setHasAllergies(e.target.checked) })} />
+              Alergias
+            </label>
+            <label className={conditionChipClass}>
+              <input type="checkbox" className="w-4 h-4 accent-terracotta" {...register("hasCeliac")} />
+              Celiaquía
+            </label>
+            <label className={conditionChipClass}>
+              <input type="checkbox" className="w-4 h-4 accent-terracotta" {...register("hasDiabetes")} />
+              Diabetes
+            </label>
+            <label className={conditionChipClass}>
+              <input type="checkbox" className="w-4 h-4 accent-terracotta" {...register("hasHypertension")} />
+              Hipertensión
+            </label>
+            <label className={conditionChipClass}>
+              <input type="checkbox" className="w-4 h-4 accent-terracotta" {...register("hasRespiratoryCondition")} />
+              Enf. respiratoria
+            </label>
+            <label className={conditionChipClass}>
+              <input type="checkbox" className="w-4 h-4 accent-terracotta" {...register("hasHeartCondition")} />
+              Enf. cardíaca
+            </label>
+            <label className={conditionChipClass}>
+              <input
+                type="checkbox"
+                className="w-4 h-4 accent-terracotta"
+                {...register("takesMedication", { onChange: (e) => setTakesMedication(e.target.checked) })}
+              />
+              Toma medicación
+            </label>
+            <label className={conditionChipClass}>
+              <input
+                type="checkbox"
+                className="w-4 h-4 accent-terracotta"
+                {...register("hasOtherCondition", { onChange: (e) => setHasOtherCondition(e.target.checked) })}
+              />
+              Otra condición
+            </label>
+          </div>
           {hasAllergies && (
-            <div>
-              <label className={labelClass}>¿A qué?</label>
+            <Field label="¿A qué sos alérgico/a?" error={errors.allergiesDetail?.message}>
               <input className={inputClass} {...register("allergiesDetail")} />
-              {errors.allergiesDetail && (
-                <p className={errorClass}>{errors.allergiesDetail.message}</p>
-              )}
-            </div>
+            </Field>
           )}
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" {...register("hasCeliac")} /> Celiaquía
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" {...register("hasDiabetes")} /> Diabetes
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" {...register("hasHypertension")} /> Hipertensión
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" {...register("hasRespiratoryCondition")} /> Enfermedad
-            respiratoria
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" {...register("hasHeartCondition")} /> Enfermedad cardíaca
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              {...register("hasOtherCondition", {
-                onChange: (e) => setHasOtherCondition(e.target.checked),
-              })}
-            />{" "}
-            Otra
-          </label>
-          {hasOtherCondition && (
-            <div>
-              <label className={labelClass}>Especificar</label>
-              <input className={inputClass} {...register("otherConditionDetail")} />
-              {errors.otherConditionDetail && (
-                <p className={errorClass}>{errors.otherConditionDetail.message}</p>
-              )}
-            </div>
-          )}
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              {...register("takesMedication", { onChange: (e) => setTakesMedication(e.target.checked) })}
-            />{" "}
-            Toma medicación
-          </label>
           {takesMedication && (
-            <div>
-              <label className={labelClass}>¿Cuál?</label>
+            <Field label="¿Qué medicación tomás?" error={errors.medicationDetail?.message}>
               <input className={inputClass} {...register("medicationDetail")} />
-              {errors.medicationDetail && (
-                <p className={errorClass}>{errors.medicationDetail.message}</p>
-              )}
-            </div>
+            </Field>
+          )}
+          {hasOtherCondition && (
+            <Field label="Especificar condición" error={errors.otherConditionDetail?.message}>
+              <input className={inputClass} {...register("otherConditionDetail")} />
+            </Field>
           )}
         </div>
-      </section>
 
-      <section className={sectionClass}>
-        <h2 className="text-lg font-semibold">Contacto de emergencia</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className={labelClass}>Nombre y apellido</label>
-            <input className={inputClass} {...register("emergencyContactName")} />
-            {errors.emergencyContactName && (
-              <p className={errorClass}>{errors.emergencyContactName.message}</p>
-            )}
+        <div className="pt-2 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <Icon name="emergency" className="text-terracotta text-[18px]" />
+            <h3 className="font-semibold text-sm text-brand-ink">Contacto en caso de emergencia</h3>
           </div>
-          <div>
-            <label className={labelClass}>Celular</label>
-            <input
-              className={inputClass}
-              inputMode="tel"
-              {...emergencyContactPhoneReg}
-              onChange={withLivePhoneFormat(emergencyContactPhoneReg)}
-            />
-            {errors.emergencyContactPhone && (
-              <p className={errorClass}>{errors.emergencyContactPhone.message}</p>
-            )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Nombre y apellido" error={errors.emergencyContactName?.message}>
+              <input className={inputClass} placeholder="Familiar o amigo" {...register("emergencyContactName")} />
+            </Field>
+            <Field label="Celular de contacto" error={errors.emergencyContactPhone?.message}>
+              <input
+                className={inputClass}
+                inputMode="tel"
+                placeholder="11 0000 0000"
+                {...emergencyContactPhoneReg}
+                onChange={withLivePhoneFormat(emergencyContactPhoneReg)}
+              />
+            </Field>
           </div>
         </div>
-      </section>
+      </div>
 
-      <section className={sectionClass}>
-        <h2 className="text-lg font-semibold">Términos y condiciones</h2>
-        <div className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-md border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700">
+      {/* SECCIÓN 4: TÉRMINOS Y CONDICIONES */}
+      <div className={cardClass}>
+        <SectionHeader
+          step={4}
+          title="Términos y condiciones"
+          subtitle="Pautas de convivencia y confirmación de plaza"
+          icon="gavel"
+        />
+        <div className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl bg-neutral-50 p-4 text-sm text-neutral-600 leading-relaxed">
           {event.terms_and_conditions}
         </div>
-        <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" className="mt-1" {...register("termsAccepted")} />
-          Acepto los Términos y Condiciones de la peregrinación.
+        <label className="p-3 rounded-xl bg-neutral-50 flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" className="mt-1 w-5 h-5 accent-terracotta" {...register("termsAccepted")} />
+          <span className="text-sm text-neutral-800">
+            He leído y acepto los Términos y Condiciones de la peregrinación.
+          </span>
         </label>
         {errors.termsAccepted && <p className={errorClass}>{errors.termsAccepted.message}</p>}
-      </section>
+      </div>
 
       {submitError && (
-        <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{submitError}</p>
+        <p className="rounded-xl bg-danger-bg p-3 text-sm text-danger">{submitError}</p>
       )}
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="w-full rounded-md bg-brand-ink px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
-      >
-        {submitting
-          ? "Procesando..."
-          : `Enviar inscripción — $${event.registration_price_ars.toLocaleString("es-AR")}`}
-      </button>
+      {/* BOTÓN PRINCIPAL DE ENVÍO */}
+      <div className="flex flex-col items-center gap-3 pt-2">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full h-14 bg-terracotta hover:bg-terracotta-hover text-white rounded-full font-bold text-base shadow-md flex items-center justify-center gap-3 active:scale-[0.985] transition-all disabled:opacity-50"
+        >
+          {submitting
+            ? "Procesando..."
+            : `Enviar inscripción — $${event.registration_price_ars.toLocaleString("es-AR")}`}
+          {!submitting && <Icon name="arrow_forward" className="text-[20px]" />}
+        </button>
+        <div className="flex items-center gap-2 text-neutral-500">
+          <Icon name="verified" className="text-[16px] text-success" />
+          <span className="text-xs">Inscripción protegida • Parroquia San Isidro Labrador</span>
+        </div>
+      </div>
     </form>
   );
 }

@@ -6,11 +6,27 @@
   --foreground: #171717;
   /* Paleta de Parroquia San Isidro Labrador: celeste del logo + un azul
      más oscuro derivado del mismo tono para botones/acciones (buen
-     contraste con texto blanco). Ajustar --brand-ink si más adelante se
-     define un color exacto a partir del logo (ej. el marrón del isotipo). */
+     contraste con texto blanco). Se sigue usando en admin/capitán. */
   --brand: #bdd5ed;
   --brand-ink: #3d5a80;
   --brand-ink-hover: #2e4560;
+
+  /* Sistema visual nuevo (propuesta vía Stitch, terracota del campanario
+     del logo como color de acción cálido). Por ahora se usa solo en las
+     pantallas públicas de peregrinos (formulario de inscripción y "Mi
+     inscripción") — admin/capitán se quedan con --brand-ink por ahora. */
+  --terracotta: #9c5234;
+  --terracotta-hover: #823f24;
+  --mist: #faede8;
+  --canvas: #fdfbf9;
+  --success: #15803d;
+  --success-bg: #dcfce7;
+  --warning: #b45309;
+  --warning-bg: #fef3c7;
+  --danger: #b91c1c;
+  --danger-bg: #fee2e2;
+  --info: #0284c7;
+  --info-bg: #e0f2fe;
 }
 
 @theme inline {
@@ -19,12 +35,32 @@
   --color-brand: var(--brand);
   --color-brand-ink: var(--brand-ink);
   --color-brand-ink-hover: var(--brand-ink-hover);
-  --font-sans: var(--font-geist-sans);
+  --color-terracotta: var(--terracotta);
+  --color-terracotta-hover: var(--terracotta-hover);
+  --color-mist: var(--mist);
+  --color-canvas: var(--canvas);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --font-sans: var(--font-plus-jakarta);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+.material-symbols-outlined {
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 500,
+    "GRAD" 0,
+    "opsz" 24;
 }
