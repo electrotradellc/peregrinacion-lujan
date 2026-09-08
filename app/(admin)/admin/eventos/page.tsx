@@ -53,7 +53,7 @@ export default async function EventosPage() {
               href={`/admin/eventos/${event.id}/config`}
               className="text-sm text-neutral-600 hover:underline"
             >
-              Configurar
+              Entrar
             </Link>
           </li>
         ))}
