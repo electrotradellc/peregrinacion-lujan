@@ -31,13 +31,26 @@ export default async function RegistroPage({
             ? "La inscripción todavía no está abierta. Volvé a intentarlo más adelante."
             : "La inscripción para este evento ya está cerrada."}
         </p>
-        <div className="mt-8 flex justify-center gap-4 text-xs text-neutral-400">
-          <Link href="/recuperar" className="hover:text-neutral-600">
-            ¿Ya te inscribiste? Recuperar mi link
-          </Link>
-          <Link href="/login" className="hover:text-neutral-600">
-            Acceso para organizadores
-          </Link>
+        <div className="mt-8 flex flex-col items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
+            <Link
+              href="/recuperar"
+              className="text-brand-ink hover:text-brand-ink-hover underline underline-offset-4"
+            >
+              ¿Ya te inscribiste? Recuperar mi link
+            </Link>
+            <span className="text-neutral-300">•</span>
+            <Link href="/login" className="text-neutral-500 hover:text-terracotta">
+              Acceso para organizadores
+            </Link>
+          </div>
+          <a
+            href={`mailto:${event.contact_email ?? "lujanpsil@gmail.com"}`}
+            className="inline-flex items-center gap-2 rounded-full border border-neutral-200 px-4 py-2 text-xs font-semibold text-brand-ink hover:bg-mist transition-colors"
+          >
+            <span className="material-symbols-outlined text-[16px]">mail</span>
+            ¿Dudas o consultas? Escribinos a {event.contact_email ?? "lujanpsil@gmail.com"}
+          </a>
         </div>
       </main>
     );
@@ -127,13 +140,26 @@ export default async function RegistroPage({
         startingPoints={startingPoints ?? []}
       />
 
-      <footer className="mt-10 flex justify-center gap-4 text-xs text-neutral-400">
-        <Link href="/recuperar" className="hover:text-neutral-600">
-          ¿Ya te inscribiste? Recuperar mi link
-        </Link>
-        <Link href="/login" className="hover:text-neutral-600">
-          Acceso para organizadores
-        </Link>
+      <footer className="mt-10 flex flex-col items-center gap-4 text-center">
+        <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
+          <Link
+            href="/recuperar"
+            className="text-brand-ink hover:text-brand-ink-hover underline underline-offset-4"
+          >
+            ¿Ya te inscribiste? Recuperar mi link
+          </Link>
+          <span className="text-neutral-300">•</span>
+          <Link href="/login" className="text-neutral-500 hover:text-terracotta">
+            Acceso para organizadores
+          </Link>
+        </div>
+        <a
+          href={`mailto:${event.contact_email ?? "lujanpsil@gmail.com"}`}
+          className="inline-flex items-center gap-2 rounded-full border border-neutral-200 px-4 py-2 text-xs font-semibold text-brand-ink hover:bg-mist transition-colors"
+        >
+          <span className="material-symbols-outlined text-[16px]">mail</span>
+          ¿Dudas o consultas? Escribinos a {event.contact_email ?? "lujanpsil@gmail.com"}
+        </a>
       </footer>
     </main>
   );
