@@ -18,7 +18,6 @@ const statusLabel: Record<string, string> = {
   pending_payment: "Pendiente de pago",
   confirmed: "Confirmada",
   payment_failed: "Pago fallido",
-  expired: "Expirada",
   cancelled: "Cancelada",
 };
 

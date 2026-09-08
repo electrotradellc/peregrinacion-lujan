@@ -28,7 +28,6 @@ Copiá `.env.local.example` a `.env.local` y completá:
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API (¡nunca la expongas al cliente!) |
 | `NEXT_PUBLIC_SITE_URL` | La URL pública del deploy (`https://...vercel.app` o dominio propio) |
 | `MAGIC_LINK_SECRET` | Cualquier string largo y random |
-| `CRON_SECRET` | Cualquier string random — Vercel Cron lo manda automático si está seteado |
 | `GMAIL_USER` / `GMAIL_APP_PASSWORD` | Casilla de Gmail de la parroquia desde la que salen los emails de inscripción/confirmación (`lib/email/`). La contraseña es un [app password](https://myaccount.google.com/apppasswords), no la contraseña normal de la cuenta |
 | `MP_ACCESS_TOKEN` / `MP_WEBHOOK_SECRET` | No hacen falta con el flujo actual (pago manual) — solo si en algún momento se reactiva Mercado Pago |
 
@@ -87,14 +86,7 @@ es exactamente eso).
 > deshabilitado (`disable: NODE_ENV === "development"` en `next.config.ts`) — probalo con
 > `npm run build && npm run start`.
 
-## 5. Cron de expiración de inscripciones
-
-`vercel.json` ya declara el cron diario de `/api/cron/expire-registrations` (marca como
-`expired` las inscripciones que quedaron muchos días en `pending_payment` sin que se
-confirme el pago). Si el proyecto no se despliega en Vercel, hay que disparar ese endpoint
-diariamente por otro medio, siempre mandando `Authorization: Bearer $CRON_SECRET`.
-
-## 6. Sobre Mercado Pago (desconectado, no eliminado)
+## 5. Sobre Mercado Pago (desconectado, no eliminado)
 
 La integración completa (creación de preferencia, webhook con verificación de firma e
 idempotencia, reconciliación manual) sigue en `lib/mercadopago/` y
@@ -104,7 +96,7 @@ idempotencia, reconciliación manual) sigue en `lib/mercadopago/` y
 ofrecer Mercado Pago como opción adicional, es cuestión de volver a invocar
 `createRegistrationPreference` desde ese mismo endpoint.
 
-## 7. Lo que falta para producción
+## 6. Lo que falta para producción
 
 - Cargar el logo/colores definitivos si cambian respecto a los actuales (paleta en
   `app/globals.css`, íconos en `public/icons/` y `app/icon.png` generados desde

@@ -40,7 +40,6 @@ export interface EventRow {
   bus_assignments_confirmed_at: string | null;
   terms_and_conditions: string;
   terms_version: string;
-  pending_payment_expiry_days: number;
   created_by: string | null;
   created_at: string;
   updated_at: string;

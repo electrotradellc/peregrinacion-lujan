@@ -136,18 +136,6 @@ export default async function EventConfigPage({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium">
-                Días para expirar inscripción sin pagar
-              </label>
-              <input
-                name="pending_payment_expiry_days"
-                type="number"
-                min="1"
-                defaultValue={event.pending_payment_expiry_days}
-                className={inputClass}
-              />
-            </div>
-            <div>
               <label className="block text-sm font-medium">Link del grupo de WhatsApp</label>
               <input
                 name="whatsapp_group_invite_url"

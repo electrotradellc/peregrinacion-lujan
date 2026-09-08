@@ -26,7 +26,7 @@ begin
     '- Avisá a tu referente de micro ante cualquier molestia, por menor que parezca.',
     E'Términos y condiciones de la Peregrinación a Luján 2026.\n\n'
     '1. La inscripción es personal e intransferible.\n'
-    '2. El pago confirma la inscripción; sin pago la inscripción queda pendiente y puede expirar.\n'
+    '2. El pago confirma la inscripción; sin pago la inscripción queda pendiente hasta que se acredite.\n'
     '3. Los organizadores no se responsabilizan por objetos personales perdidos durante la caminata.\n'
     '4. La información médica declarada será utilizada exclusivamente para asistencia en caso de emergencia.\n'
     '5. Es obligatorio presentarse en el horario y lugar indicado según el punto de partida elegido.',

@@ -13,14 +13,12 @@ const statusLabel: Record<string, string> = {
   pending_payment: "Pendiente de pago",
   confirmed: "Confirmada",
   payment_failed: "Pago fallido",
-  expired: "Expirada",
   cancelled: "Cancelada",
 };
 const statusClass: Record<string, string> = {
   pending_payment: "bg-amber-100 text-amber-800",
   confirmed: "bg-green-100 text-green-800",
   payment_failed: "bg-red-100 text-red-800",
-  expired: "bg-neutral-200 text-neutral-600",
   cancelled: "bg-neutral-200 text-neutral-600",
 };
 
