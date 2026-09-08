@@ -56,8 +56,8 @@ export default async function AsistenciaPage({
       .eq("direction", direction)
       .eq("stop_id", stopId),
     (allBuses
-      ? supabase.from("attendance_checkins").select("registration_id").in("bus_id", busIds)
-      : supabase.from("attendance_checkins").select("registration_id").eq("bus_id", busId)
+      ? supabase.from("attendance_checkins").select("id, registration_id, recorded_at").in("bus_id", busIds)
+      : supabase.from("attendance_checkins").select("id, registration_id, recorded_at").eq("bus_id", busId)
     )
       .eq("direction", direction)
       .eq("event_type", "support_vehicle"),
@@ -97,7 +97,12 @@ export default async function AsistenciaPage({
           eventType: c.event_type,
           recordedAt: c.recorded_at,
         }))}
-        supportVehicleRegistrationIds={(supportCheckins ?? []).map((c) => c.registration_id)}
+        supportVehicleCheckins={(supportCheckins ?? []).map((c) => ({
+          id: c.id,
+          registrationId: c.registration_id,
+          eventType: "support_vehicle" as const,
+          recordedAt: c.recorded_at,
+        }))}
         isPresentationStop={stops.find((s) => s.id === stopId)?.is_presentation_stop ?? false}
         isFinalStop={stopId === lastStop.id}
       />

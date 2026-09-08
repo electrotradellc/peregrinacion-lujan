@@ -36,7 +36,7 @@ export function AttendanceTable({
   stopId,
   roster,
   checkinsAtStop,
-  supportVehicleRegistrationIds,
+  supportVehicleCheckins,
   isPresentationStop = false,
   isFinalStop = false,
 }: {
@@ -45,7 +45,7 @@ export function AttendanceTable({
   stopId: string;
   roster: AttendanceRosterEntry[];
   checkinsAtStop: AttendanceCheckinEntry[];
-  supportVehicleRegistrationIds: string[];
+  supportVehicleCheckins: AttendanceCheckinEntry[];
   isPresentationStop?: boolean;
   isFinalStop?: boolean;
 }) {
@@ -68,7 +68,10 @@ export function AttendanceTable({
   const findCheckin = (registrationId: string, eventType: "arrival" | "departure") =>
     checkinsAtStop.find((c) => c.registrationId === registrationId && c.eventType === eventType);
 
-  const supportSet = useMemo(() => new Set(supportVehicleRegistrationIds), [supportVehicleRegistrationIds]);
+  const supportByRegistration = useMemo(
+    () => new Map(supportVehicleCheckins.map((c) => [c.registrationId, c])),
+    [supportVehicleCheckins],
+  );
 
   // En la parada de presentación, "llegó" = "se presentó". En el resto de
   // las paradas, el mismo conteo sirve para "sin llegada" y agregamos el
@@ -228,8 +231,9 @@ export function AttendanceTable({
                 <th className="px-3 py-2">Presentación</th>
               ) : (
                 <>
-                  {!hideArrival && <th className="px-3 py-2">Llegada</th>}
-                  {!hideDeparture && <th className="px-3 py-2">Salida</th>}
+                  <th className="px-3 py-2">
+                    {hideArrival ? "Salida" : hideDeparture ? "Llegada" : "Llegada / Salida"}
+                  </th>
                   {!hideSupportVehicle && <th className="px-3 py-2">Sigue en Micro</th>}
                 </>
               )}
@@ -239,7 +243,8 @@ export function AttendanceTable({
             {filtered.map((r) => {
               const arrival = findCheckin(r.registrationId, "arrival");
               const departure = findCheckin(r.registrationId, "departure");
-              const inSupportVehicle = supportSet.has(r.registrationId);
+              const supportCheckin = supportByRegistration.get(r.registrationId);
+              const inSupportVehicle = Boolean(supportCheckin);
               return (
                 <tr key={r.registrationId} className={inSupportVehicle ? "bg-amber-50" : undefined}>
                   {showBusColumn && <td className="px-3 py-2 text-neutral-700">{r.busNumber}</td>}
@@ -289,38 +294,18 @@ export function AttendanceTable({
                     </td>
                   ) : (
                     <>
-                      {!hideArrival && (
-                        <td className="px-3 py-2">
-                          {arrival ? (
-                            <button
-                              disabled={pending && pendingKey === `${r.registrationId}-arrival-undo`}
-                              onClick={() => undo(arrival)}
-                              title="Tocar para deshacer"
-                              className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800 hover:bg-red-100 hover:text-red-800 disabled:opacity-50"
-                            >
-                              {formatTime(arrival.recordedAt)} ✕
-                            </button>
-                          ) : (
-                            <button
-                              disabled={pending && pendingKey === `${r.registrationId}-arrival`}
-                              onClick={() => mark(r.registrationId, r.busId, "arrival")}
-                              className="rounded-md border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 disabled:opacity-50"
-                            >
-                              Marcar llegada
-                            </button>
-                          )}
-                        </td>
-                      )}
-                      {!hideDeparture && (
-                        <td className="px-3 py-2">
-                          {departure ? (
+                      <td className="px-3 py-2">
+                        {/* Parada final de vuelta: no hay "llegada" real, solo se marca
+                            la salida en el micro de regreso. */}
+                        {hideArrival &&
+                          (departure ? (
                             <button
                               disabled={pending && pendingKey === `${r.registrationId}-departure-undo`}
                               onClick={() => undo(departure)}
                               title="Tocar para deshacer"
                               className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800 hover:bg-red-100 hover:text-red-800 disabled:opacity-50"
                             >
-                              {formatTime(departure.recordedAt)} ✕
+                              Salió — {formatTime(departure.recordedAt)} ✕
                             </button>
                           ) : (
                             <button
@@ -328,14 +313,84 @@ export function AttendanceTable({
                               onClick={() => mark(r.registrationId, r.busId, "departure")}
                               className="rounded-md border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 disabled:opacity-50"
                             >
-                              Marcar salida
+                              Salió
                             </button>
-                          )}
-                        </td>
-                      )}
+                          ))}
+                        {/* Parada final de ida: ahí termina la caminata, no hay "salida". */}
+                        {hideDeparture &&
+                          (arrival ? (
+                            <button
+                              disabled={pending && pendingKey === `${r.registrationId}-arrival-undo`}
+                              onClick={() => undo(arrival)}
+                              title="Tocar para deshacer"
+                              className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800 hover:bg-red-100 hover:text-red-800 disabled:opacity-50"
+                            >
+                              Llegó — {formatTime(arrival.recordedAt)} ✕
+                            </button>
+                          ) : (
+                            <button
+                              disabled={pending && pendingKey === `${r.registrationId}-arrival`}
+                              onClick={() => mark(r.registrationId, r.busId, "arrival")}
+                              className="rounded-md border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 disabled:opacity-50"
+                            >
+                              Llegó
+                            </button>
+                          ))}
+                        {/* Parada intermedia: primero Llegó, después Salió — un solo
+                            botón visible por vez. */}
+                        {!hideArrival && !hideDeparture && (
+                          <>
+                            {departure ? (
+                              <button
+                                disabled={pending && pendingKey === `${r.registrationId}-departure-undo`}
+                                onClick={() => undo(departure)}
+                                title="Tocar para deshacer"
+                                className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800 hover:bg-red-100 hover:text-red-800 disabled:opacity-50"
+                              >
+                                Salió — {formatTime(departure.recordedAt)} ✕
+                              </button>
+                            ) : arrival ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  disabled={pending && pendingKey === `${r.registrationId}-arrival-undo`}
+                                  onClick={() => undo(arrival)}
+                                  title="Tocar para deshacer"
+                                  className="text-xs text-green-700 hover:text-red-700"
+                                >
+                                  Llegó {formatTime(arrival.recordedAt)}
+                                </button>
+                                <button
+                                  disabled={pending && pendingKey === `${r.registrationId}-departure`}
+                                  onClick={() => mark(r.registrationId, r.busId, "departure")}
+                                  className="rounded-md border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 disabled:opacity-50"
+                                >
+                                  Salió
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                disabled={pending && pendingKey === `${r.registrationId}-arrival`}
+                                onClick={() => mark(r.registrationId, r.busId, "arrival")}
+                                className="rounded-md border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 disabled:opacity-50"
+                              >
+                                Llegó
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </td>
                       {!hideSupportVehicle && (
                         <td className="px-3 py-2">
-                          {!inSupportVehicle && (
+                          {supportCheckin ? (
+                            <button
+                              disabled={pending && pendingKey === `${r.registrationId}-support_vehicle-undo`}
+                              onClick={() => undo(supportCheckin)}
+                              title="Tocar para sacar del micro de apoyo"
+                              className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 hover:bg-red-100 hover:text-red-800 disabled:opacity-50"
+                            >
+                              En micro ✕
+                            </button>
+                          ) : (
                             <button
                               disabled={pending && pendingKey === `${r.registrationId}-support_vehicle`}
                               onClick={() => mark(r.registrationId, r.busId, "support_vehicle")}
@@ -356,9 +411,7 @@ export function AttendanceTable({
                 <td
                   colSpan={
                     (showBusColumn ? 1 : 0) +
-                    (isPresentationStop
-                      ? 4
-                      : 3 + [!hideArrival, !hideDeparture, !hideSupportVehicle].filter(Boolean).length)
+                    (isPresentationStop ? 4 : 4 + (hideSupportVehicle ? 0 : 1))
                   }
                   className="px-3 py-6 text-center text-neutral-500"
                 >
