@@ -62,16 +62,16 @@ export default async function RegistroPage({
     <main className="mx-auto max-w-2xl px-4 py-10 bg-canvas">
       <section className="relative overflow-hidden rounded-3xl bg-mist p-5 md:p-6 shadow-sm mb-6">
         <div className="relative z-10 flex flex-col gap-4">
-          <div className="inline-flex items-center justify-between gap-3 bg-white px-4 py-2 rounded-full shadow-sm w-full max-w-sm">
+          <div className="inline-flex items-center justify-between gap-3 bg-white px-4 py-2.5 rounded-full shadow-sm w-full max-w-sm">
             <Image
               src="/logo.png"
               alt="Parroquia San Isidro Labrador"
               width={424}
               height={186}
-              className="h-9 w-auto object-contain"
+              className="h-12 w-auto object-contain"
               priority
             />
-            <div className="w-px h-8 bg-neutral-200 shrink-0" />
+            <div className="w-px h-10 bg-neutral-200 shrink-0" />
             <span className="text-[11px] font-bold text-terracotta uppercase tracking-wide leading-tight text-right flex-1">
               Sirviendo en Comunidad
             </span>
