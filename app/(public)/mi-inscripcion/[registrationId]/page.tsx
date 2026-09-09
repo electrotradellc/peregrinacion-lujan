@@ -95,7 +95,6 @@ export default async function MiInscripcionPage({
   const statusStyle: Record<string, { bg: string; text: string; icon: string; label: string }> = {
     pending_payment: { bg: "bg-warning-bg", text: "text-warning", icon: "hourglass_top", label: "PENDIENTE DE PAGO" },
     confirmed: { bg: "bg-success-bg", text: "text-success", icon: "verified", label: "INSCRIPCIÓN CONFIRMADA" },
-    payment_failed: { bg: "bg-danger-bg", text: "text-danger", icon: "error", label: "PAGO FALLIDO" },
     cancelled: { bg: "bg-neutral-100", text: "text-neutral-600", icon: "cancel", label: "CANCELADA" },
   };
   const currentStatus = statusStyle[registration.status] ?? statusStyle.pending_payment;

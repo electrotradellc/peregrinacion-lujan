@@ -12,13 +12,11 @@ import { calculateAge } from "@/lib/age";
 const statusLabel: Record<string, string> = {
   pending_payment: "Pendiente de pago",
   confirmed: "Confirmada",
-  payment_failed: "Pago fallido",
   cancelled: "Cancelada",
 };
 const statusClass: Record<string, string> = {
   pending_payment: "bg-amber-100 text-amber-800",
   confirmed: "bg-green-100 text-green-800",
-  payment_failed: "bg-red-100 text-red-800",
   cancelled: "bg-neutral-200 text-neutral-600",
 };
 
@@ -29,6 +27,7 @@ type Filters = {
   busIda?: string;
   busVuelta?: string;
   sort?: string;
+  onlyMinors?: string;
 };
 
 function sortLink(id: string, filters: Filters, sort: string, label: string) {
@@ -38,6 +37,7 @@ function sortLink(id: string, filters: Filters, sort: string, label: string) {
   if (filters.startingPointId) params.set("startingPointId", filters.startingPointId);
   if (filters.busIda) params.set("busIda", filters.busIda);
   if (filters.busVuelta) params.set("busVuelta", filters.busVuelta);
+  if (filters.onlyMinors) params.set("onlyMinors", filters.onlyMinors);
   params.set("sort", sort);
   const active = (filters.sort ?? "recent") === sort;
   return (
@@ -66,7 +66,11 @@ export default async function InscripcionesPage({
       supabase.from("events").select("*").eq("id", id).single<EventRow>(),
       supabase.from("starting_points").select("*").eq("event_id", id).returns<StartingPointRow[]>(),
       supabase.from("buses").select("*").eq("event_id", id).order("bus_number").returns<BusRow[]>(),
-      supabase.from("registrations").select("status").eq("event_id", id).returns<{ status: string }[]>(),
+      supabase
+        .from("registrations")
+        .select("status, starting_point_id")
+        .eq("event_id", id)
+        .returns<{ status: string; starting_point_id: string }[]>(),
     ]);
 
   const statusCounts = Object.keys(statusLabel).reduce<Record<string, number>>((acc, status) => {
@@ -74,6 +78,11 @@ export default async function InscripcionesPage({
     return acc;
   }, {});
   const totalCount = (statusCountsRaw ?? []).length;
+  const startingPointCounts = (startingPoints ?? []).map((sp) => ({
+    id: sp.id,
+    name: sp.name,
+    count: (statusCountsRaw ?? []).filter((r) => r.starting_point_id === sp.id).length,
+  }));
 
   let query = supabase.from("registrations").select("*").eq("event_id", id);
   if (filters.status) query = query.eq("status", filters.status);
@@ -121,6 +130,9 @@ export default async function InscripcionesPage({
         : assignedBus(r.id, "return") === filters.busVuelta,
     );
   }
+  if (filters.onlyMinors === "true" && event) {
+    registrations = registrations.filter((r) => calculateAge(r.birth_date, event.event_date) < 18);
+  }
 
   const sort = filters.sort ?? "recent";
   registrations = [...registrations].sort((a, b) => {
@@ -161,6 +173,17 @@ export default async function InscripcionesPage({
             className={`rounded-full px-3 py-1 font-medium ${statusClass[status]}`}
           >
             {label}: {statusCounts[status] ?? 0}
+          </span>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2 text-sm">
+        {startingPointCounts.map((sp) => (
+          <span
+            key={sp.id}
+            className="rounded-full bg-brand/30 px-3 py-1 font-medium text-brand-ink"
+          >
+            {sp.name}: {sp.count}
           </span>
         ))}
       </div>
@@ -259,6 +282,15 @@ export default async function InscripcionesPage({
             </option>
           ))}
         </select>
+        <label className="flex items-center gap-2 rounded-md border border-neutral-300 px-3 py-1.5">
+          <input
+            type="checkbox"
+            name="onlyMinors"
+            value="true"
+            defaultChecked={filters.onlyMinors === "true"}
+          />
+          Solo menores
+        </label>
         {filters.sort && <input type="hidden" name="sort" value={filters.sort} />}
         <button className="rounded-md bg-brand-ink px-3 py-1.5 text-white">Filtrar</button>
       </form>

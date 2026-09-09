@@ -50,7 +50,7 @@ export default async function EventosPage() {
               </p>
             </div>
             <Link
-              href={`/admin/eventos/${event.id}/config`}
+              href={`/admin/eventos/${event.id}/inscripciones`}
               className="text-sm text-neutral-600 hover:underline"
             >
               Entrar

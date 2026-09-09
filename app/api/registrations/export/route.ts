@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import type { RegistrationRow, StartingPointRow, BusAssignmentRow, BusRow } from "@/lib/types";
+import { calculateAge } from "@/lib/age";
+import type { RegistrationRow, StartingPointRow, BusAssignmentRow, BusRow, EventRow } from "@/lib/types";
 
 export const runtime = "nodejs";
+
+const statusLabel: Record<string, string> = {
+  pending_payment: "Pendiente de pago",
+  confirmed: "Confirmada",
+  cancelled: "Cancelada",
+};
 
 function csvEscape(value: string) {
   if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
@@ -25,17 +32,18 @@ export async function GET(request: Request) {
 
   const supabase = await createClient();
   const [
+    { data: event },
     { data: registrations },
     { data: startingPoints },
     { data: buses },
     { data: outboundAssignments },
     { data: returnAssignments },
   ] = await Promise.all([
+    supabase.from("events").select("*").eq("id", eventId).single<EventRow>(),
     supabase
       .from("registrations")
       .select("*")
       .eq("event_id", eventId)
-      .eq("status", "confirmed")
       .returns<RegistrationRow[]>(),
     supabase.from("starting_points").select("*").eq("event_id", eventId).returns<StartingPointRow[]>(),
     supabase.from("buses").select("*").eq("event_id", eventId).returns<BusRow[]>(),
@@ -76,6 +84,8 @@ export async function GET(request: Request) {
     "Apellido",
     "Nombre",
     "DNI",
+    "Estado",
+    "Menor de edad",
     "Celular",
     "Punto de partida",
     "Micro (ida)",
@@ -93,28 +103,33 @@ export async function GET(request: Request) {
     "Medicación",
     "Fecha de inscripción",
   ];
-  const rows = sorted.map((r) => [
-    String(r.pilgrim_code ?? ""),
-    r.last_name,
-    r.first_name,
-    r.dni,
-    r.phone,
-    spName(r.starting_point_id),
-    String(busNumberFor(r.id, outboundAssignments) ?? ""),
-    String(busNumberFor(r.id, returnAssignments) ?? ""),
-    r.returns_independently ? "Sí" : "No",
-    r.emergency_contact_name,
-    r.emergency_contact_phone,
-    r.has_allergies ? `Sí (${r.allergies_detail ?? ""})` : "No",
-    r.has_celiac ? "Sí" : "No",
-    r.has_diabetes ? "Sí" : "No",
-    r.has_hypertension ? "Sí" : "No",
-    r.has_respiratory_condition ? "Sí" : "No",
-    r.has_heart_condition ? "Sí" : "No",
-    r.has_other_condition ? `Sí (${r.other_condition_detail ?? ""})` : "No",
-    r.takes_medication ? `Sí (${r.medication_detail ?? ""})` : "No",
-    new Date(r.created_at).toLocaleString("es-AR"),
-  ]);
+  const rows = sorted.map((r) => {
+    const age = event ? calculateAge(r.birth_date, event.event_date) : null;
+    return [
+      String(r.pilgrim_code ?? ""),
+      r.last_name,
+      r.first_name,
+      r.dni,
+      statusLabel[r.status] ?? r.status,
+      age !== null && age < 18 ? `Sí (${age} años)` : "No",
+      r.phone,
+      spName(r.starting_point_id),
+      String(busNumberFor(r.id, outboundAssignments) ?? ""),
+      String(busNumberFor(r.id, returnAssignments) ?? ""),
+      r.returns_independently ? "Sí" : "No",
+      r.emergency_contact_name,
+      r.emergency_contact_phone,
+      r.has_allergies ? `Sí (${r.allergies_detail ?? ""})` : "No",
+      r.has_celiac ? "Sí" : "No",
+      r.has_diabetes ? "Sí" : "No",
+      r.has_hypertension ? "Sí" : "No",
+      r.has_respiratory_condition ? "Sí" : "No",
+      r.has_heart_condition ? "Sí" : "No",
+      r.has_other_condition ? `Sí (${r.other_condition_detail ?? ""})` : "No",
+      r.takes_medication ? `Sí (${r.medication_detail ?? ""})` : "No",
+      new Date(r.created_at).toLocaleString("es-AR"),
+    ];
+  });
 
   const csv = [header, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
 
