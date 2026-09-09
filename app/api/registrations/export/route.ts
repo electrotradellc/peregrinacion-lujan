@@ -133,7 +133,11 @@ export async function GET(request: Request) {
 
   const csv = [header, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
 
-  return new NextResponse(csv, {
+  // Excel en Windows no detecta UTF-8 solo — sin el BOM, interpreta los
+  // acentos/ñ como Latin-1 y salen mojibake (ej. "MarÃ­a" en vez de "María").
+  const csvWithBom = "﻿" + csv;
+
+  return new NextResponse(csvWithBom, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="inscriptos-${eventId}.csv"`,
