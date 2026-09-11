@@ -53,6 +53,7 @@ function exampleStartingPoint(eventId: string): StartingPointRow {
     presentation_time: "07:00:00",
     presentation_location: "Parroquia San Isidro Labrador",
     notes: null,
+    is_active: true,
     created_at: new Date().toISOString(),
   };
 }

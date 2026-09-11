@@ -53,6 +53,21 @@ export async function deleteStartingPointAction(eventId: string, startingPointId
   revalidateConfig(eventId);
 }
 
+export async function setStartingPointActiveAction(
+  eventId: string,
+  startingPointId: string,
+  isActive: boolean,
+) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("starting_points")
+    .update({ is_active: isActive })
+    .eq("id", startingPointId);
+  if (error) throw new Error(error.message);
+  revalidateConfig(eventId);
+  revalidatePath(`/registro/${eventId}`);
+}
+
 export async function addBusAction(eventId: string, formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.from("buses").insert({

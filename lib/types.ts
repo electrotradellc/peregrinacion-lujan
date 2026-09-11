@@ -52,6 +52,7 @@ export interface StartingPointRow {
   presentation_time: string;
   presentation_location: string;
   notes: string | null;
+  is_active: boolean;
   created_at: string;
 }
 

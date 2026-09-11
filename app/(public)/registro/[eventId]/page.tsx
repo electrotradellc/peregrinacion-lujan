@@ -60,6 +60,7 @@ export default async function RegistroPage({
     .from("starting_points")
     .select("*")
     .eq("event_id", eventId)
+    .eq("is_active", true)
     .order("name")
     .returns<StartingPointRow[]>();
 

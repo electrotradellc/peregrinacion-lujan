@@ -15,6 +15,7 @@ import {
   updateEventSettingsAction,
   addStartingPointAction,
   deleteStartingPointAction,
+  setStartingPointActiveAction,
   addBusAction,
   deleteBusAction,
   addStopAction,
@@ -246,16 +247,38 @@ export default async function EventConfigPage({
 
       <section className={cardClass}>
         <h2 className="font-semibold">Puntos de partida</h2>
+        <p className="text-sm text-neutral-600">
+          Desactivá un punto cuando se completen sus micros — deja de ofrecerse en la
+          inscripción, pero no se pierden los inscriptos que ya lo eligieron.
+        </p>
         <ul className="divide-y divide-neutral-200">
           {(startingPoints ?? []).map((sp) => (
-            <li key={sp.id} className="flex items-center justify-between py-2 text-sm">
+            <li key={sp.id} className="flex items-center justify-between gap-3 py-2 text-sm">
               <span>
                 <strong>{sp.name}</strong> — presentarse {sp.presentation_time.slice(0, 5)}hs en{" "}
                 {sp.presentation_location}
+                {!sp.is_active && (
+                  <span className="ml-2 rounded-full bg-neutral-200 px-2 py-0.5 text-xs font-semibold text-neutral-600">
+                    Cerrado
+                  </span>
+                )}
               </span>
-              <form action={deleteStartingPointAction.bind(null, id, sp.id)}>
-                <button className="text-red-600 hover:underline">Eliminar</button>
-              </form>
+              <div className="flex shrink-0 items-center gap-3">
+                <form action={setStartingPointActiveAction.bind(null, id, sp.id, !sp.is_active)}>
+                  <button
+                    className={
+                      sp.is_active
+                        ? "text-amber-700 hover:underline"
+                        : "text-green-700 hover:underline"
+                    }
+                  >
+                    {sp.is_active ? "Cerrar inscripción" : "Reabrir"}
+                  </button>
+                </form>
+                <form action={deleteStartingPointAction.bind(null, id, sp.id)}>
+                  <button className="text-red-600 hover:underline">Eliminar</button>
+                </form>
+              </div>
             </li>
           ))}
         </ul>

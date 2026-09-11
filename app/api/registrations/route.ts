@@ -68,6 +68,20 @@ export async function POST(request: Request) {
     );
   }
 
+  const { data: startingPoint } = await supabase
+    .from("starting_points")
+    .select("*")
+    .eq("id", data.startingPointId)
+    .eq("event_id", data.eventId)
+    .single<StartingPointRow>();
+
+  if (!startingPoint || !startingPoint.is_active) {
+    return NextResponse.json(
+      { error: "Ese punto de partida ya no está disponible. Elegí otro para continuar." },
+      { status: 400 },
+    );
+  }
+
   // Tope duro de 200 inscriptos confirmados/pendientes para evitar sobreventa;
   // la asignación real a un micro específico la controla el admin después.
   const { count: activeCount } = await supabase
@@ -169,12 +183,7 @@ export async function POST(request: Request) {
   // de Gmail mal cargadas) la inscripción ya quedó guardada igual, no
   // bloqueamos al peregrino por un problema de envío de mail.
   try {
-    const { data: startingPoint } = await supabase
-      .from("starting_points")
-      .select("*")
-      .eq("id", data.startingPointId)
-      .single<StartingPointRow>();
-    await sendRegistrationPendingEmail(insertedRegistration, event, startingPoint ?? null);
+    await sendRegistrationPendingEmail(insertedRegistration, event, startingPoint);
   } catch (err) {
     console.error("No se pudo enviar el email de inscripción pendiente:", err);
   }
