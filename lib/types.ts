@@ -113,6 +113,7 @@ export interface RegistrationRow {
   emergency_contact_phone: string;
   starting_point_id: string;
   returns_independently: boolean;
+  joins_independently: boolean;
   has_allergies: boolean;
   allergies_detail: string | null;
   has_celiac: boolean;
@@ -201,4 +202,5 @@ export interface CaptainRosterRow {
   other_condition_detail: string | null;
   takes_medication: boolean;
   medication_detail: string | null;
+  joins_independently: boolean;
 }

@@ -71,6 +71,7 @@ export default async function AsistenciaPage({
     lastName: a.registrations.last_name,
     firstName: a.registrations.first_name,
     phone: a.registrations.phone,
+    joinsIndependently: a.registrations.joins_independently,
   }));
 
   return (

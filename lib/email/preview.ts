@@ -25,6 +25,7 @@ function exampleRegistration(eventId: string): RegistrationRow {
     emergency_contact_phone: "+5491133445566",
     starting_point_id: "00000000-0000-0000-0000-000000000001",
     returns_independently: false,
+    joins_independently: false,
     has_allergies: false,
     allergies_detail: null,
     has_celiac: false,

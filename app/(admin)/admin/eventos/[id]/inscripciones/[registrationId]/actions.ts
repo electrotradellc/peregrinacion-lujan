@@ -28,6 +28,7 @@ export async function updateRegistrationAction(
       emergency_contact_name: String(formData.get("emergency_contact_name")),
       emergency_contact_phone: String(formData.get("emergency_contact_phone")),
       returns_independently: bool("returns_independently"),
+      joins_independently: bool("joins_independently"),
       has_health_insurance: bool("has_health_insurance"),
       health_insurance_provider: String(formData.get("health_insurance_provider") || "") || null,
       health_insurance_member_number:

@@ -13,6 +13,7 @@ export interface AttendanceRosterEntry {
   lastName: string;
   firstName: string;
   phone: string;
+  joinsIndependently?: boolean;
 }
 
 export interface AttendanceCheckinEntry {
@@ -254,6 +255,11 @@ export function AttendanceTable({
                     {inSupportVehicle && (
                       <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
                         🚐 en micro de apoyo
+                      </span>
+                    )}
+                    {r.joinsIndependently && (
+                      <span className="ml-1 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-800">
+                        Se une por su cuenta
                       </span>
                     )}
                   </td>

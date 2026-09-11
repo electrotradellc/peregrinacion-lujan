@@ -75,6 +75,7 @@ export default async function CaptainAsistenciaPage({
     lastName: r.last_name,
     firstName: r.first_name,
     phone: r.phone,
+    joinsIndependently: r.joins_independently,
   }));
 
   const linkTo = (overrides: Record<string, string>) => {

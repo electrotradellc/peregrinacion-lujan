@@ -28,6 +28,7 @@ type Filters = {
   busVuelta?: string;
   sort?: string;
   onlyMinors?: string;
+  onlyIndependentJoiners?: string;
 };
 
 function sortLink(id: string, filters: Filters, sort: string, label: string) {
@@ -38,6 +39,7 @@ function sortLink(id: string, filters: Filters, sort: string, label: string) {
   if (filters.busIda) params.set("busIda", filters.busIda);
   if (filters.busVuelta) params.set("busVuelta", filters.busVuelta);
   if (filters.onlyMinors) params.set("onlyMinors", filters.onlyMinors);
+  if (filters.onlyIndependentJoiners) params.set("onlyIndependentJoiners", filters.onlyIndependentJoiners);
   params.set("sort", sort);
   const active = (filters.sort ?? "recent") === sort;
   return (
@@ -68,9 +70,9 @@ export default async function InscripcionesPage({
       supabase.from("buses").select("*").eq("event_id", id).order("bus_number").returns<BusRow[]>(),
       supabase
         .from("registrations")
-        .select("status, starting_point_id")
+        .select("status, starting_point_id, joins_independently")
         .eq("event_id", id)
-        .returns<{ status: string; starting_point_id: string }[]>(),
+        .returns<{ status: string; starting_point_id: string; joins_independently: boolean }[]>(),
     ]);
 
   const statusCounts = Object.keys(statusLabel).reduce<Record<string, number>>((acc, status) => {
@@ -83,6 +85,7 @@ export default async function InscripcionesPage({
     name: sp.name,
     count: (statusCountsRaw ?? []).filter((r) => r.starting_point_id === sp.id).length,
   }));
+  const independentJoinersCount = (statusCountsRaw ?? []).filter((r) => r.joins_independently).length;
 
   let query = supabase.from("registrations").select("*").eq("event_id", id);
   if (filters.status) query = query.eq("status", filters.status);
@@ -132,6 +135,9 @@ export default async function InscripcionesPage({
   }
   if (filters.onlyMinors === "true" && event) {
     registrations = registrations.filter((r) => calculateAge(r.birth_date, event.event_date) < 18);
+  }
+  if (filters.onlyIndependentJoiners === "true") {
+    registrations = registrations.filter((r) => r.joins_independently);
   }
 
   const sort = filters.sort ?? "recent";
@@ -186,6 +192,9 @@ export default async function InscripcionesPage({
             {sp.name}: {sp.count}
           </span>
         ))}
+        <span className="rounded-full bg-blue-100 px-3 py-1 font-medium text-blue-800">
+          Se unen por su cuenta: {independentJoinersCount}
+        </span>
       </div>
 
       {event?.bus_assignments_confirmed_at ? (
@@ -291,6 +300,15 @@ export default async function InscripcionesPage({
           />
           Solo menores
         </label>
+        <label className="flex items-center gap-2 rounded-md border border-neutral-300 px-3 py-1.5">
+          <input
+            type="checkbox"
+            name="onlyIndependentJoiners"
+            value="true"
+            defaultChecked={filters.onlyIndependentJoiners === "true"}
+          />
+          Solo se unen por su cuenta
+        </label>
         {filters.sort && <input type="hidden" name="sort" value={filters.sort} />}
         <button className="rounded-md bg-brand-ink px-3 py-1.5 text-white">Filtrar</button>
       </form>
@@ -323,6 +341,11 @@ export default async function InscripcionesPage({
                     {age !== null && age < 18 && (
                       <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
                         Menor ({age})
+                      </span>
+                    )}
+                    {r.joins_independently && (
+                      <span className="ml-1 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-800">
+                        Se une por su cuenta
                       </span>
                     )}
                   </td>

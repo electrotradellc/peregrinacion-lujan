@@ -67,6 +67,11 @@ export default async function RegistrationDetailPage({
                 {age !== null && age <= 15 && " · necesita ir acompañado por un adulto"}
               </span>
             )}
+            {registration.joins_independently && (
+              <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 align-middle text-xs text-blue-800">
+                Se une por su cuenta
+              </span>
+            )}
           </h1>
           <p className="text-sm text-neutral-500">
             DNI {registration.dni} · Estado: {registration.status} · Inscripto el{" "}
@@ -216,6 +221,14 @@ export default async function RegistrationDetailPage({
             defaultChecked={registration.returns_independently}
           />
           Vuelve por sus propios medios (no necesita micro de vuelta)
+        </label>
+        <label className={checkboxRow}>
+          <input
+            type="checkbox"
+            name="joins_independently"
+            defaultChecked={registration.joins_independently}
+          />
+          No usa el micro de ida (se une por su cuenta) — se le cobra menos
         </label>
 
         <h3 className="pt-2 font-medium">Obra social</h3>
