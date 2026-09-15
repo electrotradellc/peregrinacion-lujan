@@ -82,19 +82,26 @@ export async function POST(request: Request) {
     );
   }
 
-  // Tope duro de 200 inscriptos confirmados/pendientes para evitar sobreventa;
-  // la asignación real a un micro específico la controla el admin después.
+  // Tope por punto de salida (no global) para evitar sobreventa de los
+  // micros de esa salida en particular; la asignación real a un micro
+  // específico la controla el admin después. Cada punto de salida tiene su
+  // propia flota, así que llenarse uno no debe bloquear a los demás.
   const { count: activeCount } = await supabase
     .from("registrations")
     .select("id", { count: "exact", head: true })
     .eq("event_id", data.eventId)
+    .eq("starting_point_id", data.startingPointId)
     .in("status", ["pending_payment", "confirmed"]);
 
-  const { data: buses } = await supabase.from("buses").select("capacity").eq("event_id", data.eventId);
+  const { data: buses } = await supabase
+    .from("buses")
+    .select("capacity")
+    .eq("event_id", data.eventId)
+    .eq("starting_point_id", data.startingPointId);
   const totalCapacity = (buses ?? []).reduce((sum, b) => sum + b.capacity, 0);
   if (totalCapacity > 0 && (activeCount ?? 0) >= totalCapacity) {
     return NextResponse.json(
-      { error: "Ya no quedan lugares disponibles para este evento." },
+      { error: `Ya no quedan cupos disponibles para salir desde ${startingPoint.name} por el momento.` },
       { status: 400 },
     );
   }
