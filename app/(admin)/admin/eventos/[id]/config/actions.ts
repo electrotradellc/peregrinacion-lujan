@@ -80,6 +80,16 @@ export async function addBusAction(eventId: string, formData: FormData) {
   revalidateConfig(eventId);
 }
 
+export async function updateBusCapacityAction(eventId: string, busId: string, formData: FormData) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("buses")
+    .update({ capacity: Number(formData.get("capacity")) })
+    .eq("id", busId);
+  if (error) throw new Error(error.message);
+  revalidateConfig(eventId);
+}
+
 export async function deleteBusAction(eventId: string, busId: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("buses").delete().eq("id", busId);
