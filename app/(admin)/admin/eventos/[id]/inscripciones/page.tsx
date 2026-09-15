@@ -420,8 +420,12 @@ export default async function InscripcionesPage({
                     <div className="flex items-center justify-end gap-3">
                       {r.status === "pending_payment" && (
                         <form action={setRegistrationStatusAction.bind(null, id, r.id, "confirmed")}>
-                          <button className="rounded-md bg-green-700 px-2 py-1 text-xs font-semibold text-white hover:bg-green-800">
-                            Marcar como pagada
+                          <button
+                            type="submit"
+                            title="Marcar como pagada"
+                            className="flex h-6 w-6 items-center justify-center rounded-full bg-green-700 text-xs font-bold text-white hover:bg-green-800"
+                          >
+                            $
                           </button>
                         </form>
                       )}
