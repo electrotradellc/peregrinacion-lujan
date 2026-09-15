@@ -7,6 +7,7 @@ import { AutoSubmitCheckbox } from "@/components/admin/AutoSubmitCheckbox";
 import { assignToBusAction } from "@/lib/actions/busAssignments";
 import { setReturnsIndependentlyAction } from "@/lib/actions/registrations";
 import { confirmBusAssignmentsAction, reopenBusAssignmentsAction } from "./actions";
+import { setRegistrationStatusAction } from "./[registrationId]/actions";
 import { calculateAge } from "@/lib/age";
 
 const statusLabel: Record<string, string> = {
@@ -417,6 +418,13 @@ export default async function InscripcionesPage({
                   </td>
                   <td className="px-4 py-2 text-right">
                     <div className="flex items-center justify-end gap-3">
+                      {r.status === "pending_payment" && (
+                        <form action={setRegistrationStatusAction.bind(null, id, r.id, "confirmed")}>
+                          <button className="rounded-md bg-green-700 px-2 py-1 text-xs font-semibold text-white hover:bg-green-800">
+                            Marcar como pagada
+                          </button>
+                        </form>
+                      )}
                       <Link
                         href={`/admin/eventos/${id}/inscripciones/${r.id}`}
                         className="text-neutral-600 hover:underline"
