@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { EventRow, StartingPointRow, BusRow, StopRow, BusCaptainAssignmentRow, ProfileRow } from "@/lib/types";
 import { CollapsibleAddForm } from "@/components/admin/CollapsibleAddForm";
 import { StopListItem } from "@/components/admin/StopListItem";
+import { BusCapacityForm } from "@/components/admin/BusCapacityForm";
 import { EmailTemplateSection } from "@/components/admin/EmailTemplateSection";
 import { buildEmailPreviews } from "@/lib/email/preview";
 import {
@@ -17,7 +18,6 @@ import {
   deleteStartingPointAction,
   setStartingPointActiveAction,
   addBusAction,
-  updateBusCapacityAction,
   deleteBusAction,
   addStopAction,
   updateStopAction,
@@ -329,22 +329,7 @@ export default async function EventConfigPage({
                   </span>
                 </span>
                 <div className="flex shrink-0 items-center gap-2">
-                  <form
-                    action={updateBusCapacityAction.bind(null, id, bus.id)}
-                    className="flex items-center gap-1"
-                  >
-                    <input
-                      name="capacity"
-                      type="number"
-                      min="1"
-                      defaultValue={bus.capacity}
-                      className="w-16 rounded-md border border-neutral-300 px-2 py-1 text-sm"
-                    />
-                    <span className="text-xs text-neutral-500">lugares</span>
-                    <button className="rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-50">
-                      Guardar
-                    </button>
-                  </form>
+                  <BusCapacityForm eventId={id} busId={bus.id} initialCapacity={bus.capacity} />
                   <form action={deleteBusAction.bind(null, id, bus.id)}>
                     <button className="text-red-600 hover:underline">Eliminar</button>
                   </form>
