@@ -220,7 +220,7 @@ export function AttendanceTable({
         )}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+      <div className="scrollbar-visible overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-neutral-50 text-left text-neutral-600">
             <tr>

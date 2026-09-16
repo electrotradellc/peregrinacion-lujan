@@ -7,7 +7,7 @@ export default async function CaptainLayout({ children }: { children: React.Reac
   const session = await requireBusCaptain();
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen w-full min-w-0 bg-neutral-50">
       <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-neutral-200 bg-white px-4 py-3">
         <div className="flex shrink-0 items-center gap-3 whitespace-nowrap">
           <Image

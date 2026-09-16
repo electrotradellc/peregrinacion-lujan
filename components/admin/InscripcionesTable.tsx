@@ -198,7 +198,7 @@ export function InscripcionesTable({
         </label>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+      <div className="scrollbar-visible overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-neutral-50 text-left text-neutral-600">
             <tr>
@@ -223,7 +223,7 @@ export function InscripcionesTable({
                   Inscripto el
                 </SortButton>
               </th>
-              <th className="px-4 py-2" />
+              <th className="sticky right-0 border-l border-neutral-200 bg-neutral-50 px-4 py-2" />
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
@@ -312,7 +312,7 @@ export function InscripcionesTable({
                       timeZone: "America/Argentina/Buenos_Aires",
                     })}
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="sticky right-0 border-l border-neutral-200 bg-white px-4 py-2 text-right">
                     <div className="flex items-center justify-end gap-3">
                       {r.status === "pending_payment" && (
                         <form action={setRegistrationStatusAction.bind(null, eventId, r.id, "confirmed")}>
