@@ -7,7 +7,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const session = await requireAdmin();
 
   return (
-    <div className="min-h-screen w-full min-w-0 bg-neutral-50">
+    <div className="min-h-screen bg-neutral-50">
       <header className="border-b border-neutral-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 pt-3">
           <Image src="/logo.png" alt="Parroquia San Isidro Labrador" width={424} height={186} className="h-8 w-auto shrink-0" />
