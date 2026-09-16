@@ -64,3 +64,21 @@ body {
     "GRAD" 0,
     "opsz" 24;
 }
+
+/* Tablas anchas con scroll horizontal (ej. Inscripciones) — la scrollbar
+   por defecto es tan fina que en varios navegadores/SO pasa
+   desapercibida. La hacemos más gruesa y siempre visible. */
+.scrollbar-visible {
+  scrollbar-width: auto;
+  scrollbar-color: #a3a3a3 #f5f5f5;
+}
+.scrollbar-visible::-webkit-scrollbar {
+  height: 12px;
+}
+.scrollbar-visible::-webkit-scrollbar-track {
+  background: #f5f5f5;
+}
+.scrollbar-visible::-webkit-scrollbar-thumb {
+  background-color: #a3a3a3;
+  border-radius: 9999px;
+}

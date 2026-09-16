@@ -198,9 +198,9 @@ export function InscripcionesTable({
         </label>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+      <div className="scrollbar-visible max-h-[65vh] overflow-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full text-sm">
-          <thead className="bg-neutral-50 text-left text-neutral-600">
+          <thead className="sticky top-0 z-10 bg-neutral-50 text-left text-neutral-600">
             <tr>
               <th className="px-4 py-2">
                 <SortButton active={sort === "name"} onClick={() => setSort("name")}>
