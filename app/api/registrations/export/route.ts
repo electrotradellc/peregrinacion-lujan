@@ -2,15 +2,10 @@ import { NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { calculateAge } from "@/lib/age";
+import { statusLabel } from "@/lib/registrationStatus";
 import type { RegistrationRow, StartingPointRow, BusAssignmentRow, BusRow, EventRow } from "@/lib/types";
 
 export const runtime = "nodejs";
-
-const statusLabel: Record<string, string> = {
-  pending_payment: "Pendiente de pago",
-  confirmed: "Confirmada",
-  cancelled: "Cancelada",
-};
 
 function csvEscape(value: string) {
   if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;

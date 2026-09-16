@@ -10,17 +10,7 @@ import { assignToBusAction } from "@/lib/actions/busAssignments";
 import { setReturnsIndependentlyAction } from "@/lib/actions/registrations";
 import { setRegistrationStatusAction } from "@/app/(admin)/admin/eventos/[id]/inscripciones/[registrationId]/actions";
 import { calculateAge } from "@/lib/age";
-
-export const statusLabel: Record<string, string> = {
-  pending_payment: "Pendiente de pago",
-  confirmed: "Confirmada",
-  cancelled: "Cancelada",
-};
-export const statusClass: Record<string, string> = {
-  pending_payment: "bg-amber-100 text-amber-800",
-  confirmed: "bg-green-100 text-green-800",
-  cancelled: "bg-neutral-200 text-neutral-600",
-};
+import { statusLabel, statusClass } from "@/lib/registrationStatus";
 
 type Sort = "recent" | "name" | "code";
 

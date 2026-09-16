@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { RegistrationRow, StartingPointRow, BusRow, BusAssignmentRow, EventRow } from "@/lib/types";
-import { InscripcionesTable, statusLabel, statusClass } from "@/components/admin/InscripcionesTable";
+import { InscripcionesTable } from "@/components/admin/InscripcionesTable";
+import { statusLabel, statusClass } from "@/lib/registrationStatus";
 import { confirmBusAssignmentsAction, reopenBusAssignmentsAction } from "./actions";
 
 export default async function InscripcionesPage({
