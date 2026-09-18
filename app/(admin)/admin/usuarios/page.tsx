@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import type { ProfileRow, EventRow, BusRow, BusCaptainAssignmentRow } from "@/lib/types";
 import { createCaptainAction } from "./actions";
@@ -36,9 +37,17 @@ export default async function UsuariosPage() {
           <li key={p.id} className="px-4 py-3 text-sm">
             <div className="flex items-center justify-between">
               <span className="font-medium">{p.full_name}</span>
-              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs">
-                {p.role === "admin" ? "Admin" : "Referente de micro"}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs">
+                  {p.role === "admin" ? "Admin" : "Referente de micro"}
+                </span>
+                <Link
+                  href={`/admin/usuarios/${p.id}`}
+                  className="text-xs font-medium text-neutral-600 underline hover:text-neutral-900"
+                >
+                  Editar
+                </Link>
+              </div>
             </div>
             <p className="text-neutral-500">
               {p.whatsapp_phone ?? "sin WhatsApp cargado"}

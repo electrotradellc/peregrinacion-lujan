@@ -3,8 +3,18 @@
 import { useState } from "react";
 import type { BusRow, EventRow } from "@/lib/types";
 
-export function EventBusPicker({ events, buses }: { events: EventRow[]; buses: BusRow[] }) {
-  const [eventId, setEventId] = useState("");
+export function EventBusPicker({
+  events,
+  buses,
+  defaultEventId = "",
+  defaultBusId = "",
+}: {
+  events: EventRow[];
+  buses: BusRow[];
+  defaultEventId?: string;
+  defaultBusId?: string;
+}) {
+  const [eventId, setEventId] = useState(defaultEventId);
   const busesForEvent = buses.filter((b) => b.event_id === eventId);
 
   return (
@@ -30,6 +40,7 @@ export function EventBusPicker({ events, buses }: { events: EventRow[]; buses: B
         <select
           name="bus_id"
           disabled={!eventId}
+          defaultValue={defaultBusId}
           className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm disabled:bg-neutral-100"
         >
           <option value="">-</option>
