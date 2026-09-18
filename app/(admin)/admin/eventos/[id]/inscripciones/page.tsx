@@ -32,6 +32,7 @@ export default async function InscripcionesPage({
     count: registrations.filter((r) => r.starting_point_id === sp.id && r.status !== "cancelled").length,
   }));
   const independentJoinersCount = registrations.filter((r) => r.joins_independently).length;
+  const independentReturnersCount = registrations.filter((r) => r.returns_independently).length;
 
   const busIds = (buses ?? []).map((b) => b.id);
   const { data: assignmentsRaw } = busIds.length
@@ -82,6 +83,9 @@ export default async function InscripcionesPage({
         ))}
         <span className="rounded-full bg-blue-100 px-3 py-1 font-medium text-blue-800">
           Se unen por su cuenta: {independentJoinersCount}
+        </span>
+        <span className="rounded-full bg-purple-100 px-3 py-1 font-medium text-purple-800">
+          Vuelven por su cuenta: {independentReturnersCount}
         </span>
       </div>
 
