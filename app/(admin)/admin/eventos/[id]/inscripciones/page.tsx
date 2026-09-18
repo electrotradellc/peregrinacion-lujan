@@ -29,7 +29,7 @@ export default async function InscripcionesPage({
   const startingPointCounts = (startingPoints ?? []).map((sp) => ({
     id: sp.id,
     name: sp.name,
-    count: registrations.filter((r) => r.starting_point_id === sp.id).length,
+    count: registrations.filter((r) => r.starting_point_id === sp.id && r.status !== "cancelled").length,
   }));
   const independentJoinersCount = registrations.filter((r) => r.joins_independently).length;
 
