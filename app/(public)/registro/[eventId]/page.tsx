@@ -116,7 +116,7 @@ export default async function RegistroPage({
     <main className="mx-auto max-w-2xl px-4 py-10 bg-canvas">
       <section className="relative overflow-hidden rounded-3xl bg-mist p-5 md:p-6 shadow-sm mb-6">
         <div className="relative z-10 flex flex-col gap-4">
-          <div className="inline-flex items-center justify-between gap-3 bg-white px-4 py-2.5 rounded-full shadow-sm w-full max-w-sm">
+          <div className="flex items-center justify-between gap-3 bg-white px-4 py-2.5 rounded-full shadow-sm w-full">
             <Image
               src="/logo.png"
               alt="Parroquia San Isidro Labrador"
