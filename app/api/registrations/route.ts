@@ -186,6 +186,24 @@ export async function POST(request: Request) {
     );
   }
 
+  // Si vino desde un link de invitación de lista de espera, cerramos ese
+  // círculo (mejor esfuerzo: si esto falla, la inscripción ya quedó
+  // guardada igual, no bloqueamos al peregrino por esto). El `eq status
+  // invited` evita reabrir una entrada ya cancelada o reutilizada.
+  const waitlistEntryId = formData.get("waitlistEntryId");
+  if (typeof waitlistEntryId === "string" && waitlistEntryId) {
+    try {
+      await supabase
+        .from("waitlist_entries")
+        .update({ status: "completed", registration_id: insertedRegistration.id })
+        .eq("id", waitlistEntryId)
+        .eq("event_id", data.eventId)
+        .eq("status", "invited");
+    } catch (err) {
+      console.error("No se pudo actualizar la entrada de lista de espera:", err);
+    }
+  }
+
   // El mail de confirmación es "mejor esfuerzo": si falla (ej. credenciales
   // de Gmail mal cargadas) la inscripción ya quedó guardada igual, no
   // bloqueamos al peregrino por un problema de envío de mail.

@@ -25,7 +25,7 @@ function medicalSummary(r: RegistrationRow): string {
   return lines.length ? lines.join(", ") : "Ninguna";
 }
 
-const SIGNATURE = "Muchas gracias!\nSaludos.\n\nGrupo de Apoyo Luján\nParroquia San Isidro Labrador";
+export const SIGNATURE = "Muchas gracias!\nSaludos.\n\nGrupo de Apoyo Luján\nParroquia San Isidro Labrador";
 
 export const REGISTRATION_PENDING_TAGS = [
   "nombre",

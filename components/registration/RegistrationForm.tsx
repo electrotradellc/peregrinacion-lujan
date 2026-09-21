@@ -10,6 +10,7 @@ import {
   formatPhoneDigits,
   type RegistrationFields,
 } from "@/lib/validation/registrationSchema";
+import { WaitlistSignupForm } from "./WaitlistSignupForm";
 import type { ChangeEvent, ReactNode } from "react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 import type { EventRow, StartingPointRow } from "@/lib/types";
@@ -210,12 +211,30 @@ function PhotoField({
   );
 }
 
+// Debajo de esta cantidad de lugares libres, se lo avisamos al peregrino en
+// vez de dejar que se entere recién al chocar con el error en el envío.
+const LOW_CAPACITY_THRESHOLD = 10;
+
+export type RegistrationPrefill = {
+  waitlistEntryId: string;
+  startingPointId: string;
+  firstName: string;
+  lastName: string;
+  dni: string;
+  phone: string;
+  email: string;
+};
+
 export function RegistrationForm({
   event,
   startingPoints,
+  capacityByStartingPoint,
+  prefill,
 }: {
   event: EventRow;
   startingPoints: StartingPointRow[];
+  capacityByStartingPoint: Record<string, number | null>;
+  prefill?: RegistrationPrefill;
 }) {
   const [dniPhoto, setDniPhoto] = useState<File | null>(null);
   const [insuranceCardPhoto, setInsuranceCardPhoto] = useState<File | null>(null);
@@ -239,6 +258,12 @@ export function RegistrationForm({
     resolver: zodResolver(registrationFieldsSchema),
     defaultValues: {
       eventId: event.id,
+      firstName: prefill?.firstName ?? "",
+      lastName: prefill?.lastName ?? "",
+      dni: prefill?.dni ?? "",
+      phone: prefill?.phone ?? "",
+      email: prefill?.email ?? "",
+      startingPointId: prefill?.startingPointId,
       hasHealthInsurance: false,
       hasAllergies: false,
       hasCeliac: false,
@@ -283,6 +308,7 @@ export function RegistrationForm({
     });
     if (dniPhoto) formData.append("dniPhoto", dniPhoto);
     if (insuranceCardPhoto) formData.append("healthInsuranceCardPhoto", insuranceCardPhoto);
+    if (prefill?.waitlistEntryId) formData.append("waitlistEntryId", prefill.waitlistEntryId);
 
     setSubmitting(true);
     try {
@@ -302,6 +328,16 @@ export function RegistrationForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
+      {prefill && (
+        <div className="flex items-start gap-3 rounded-2xl bg-success-bg p-4 text-sm text-success">
+          <Icon name="celebration" className="text-[20px] shrink-0" />
+          <span>
+            ¡Se liberó un cupo para vos! Ya completamos tus datos — revisalos y enviá la
+            inscripción para confirmar tu lugar.
+          </span>
+        </div>
+      )}
+
       {/* SECCIÓN 1: DATOS PERSONALES */}
       <div className={cardClass}>
         <SectionHeader
@@ -384,28 +420,56 @@ export function RegistrationForm({
         />
         <div className="flex flex-col gap-2">
           <label className={labelClass}>Elegí tu punto de salida</label>
-          {startingPoints.map((sp) => (
-            <label
-              key={sp.id}
-              className="relative flex items-center gap-3 p-4 bg-neutral-50 hover:bg-mist rounded-xl cursor-pointer transition-colors"
-            >
-              <input
-                type="radio"
-                value={sp.id}
-                className="w-5 h-5 accent-terracotta cursor-pointer"
-                {...register("startingPointId")}
-              />
-              <div className="flex-1 flex items-center justify-between gap-2">
-                <div>
-                  <span className="font-semibold text-sm text-neutral-900 block">{sp.name}</span>
-                  <span className="text-xs text-neutral-500">
-                    Presentarse {sp.presentation_time.slice(0, 5)}hs en {sp.presentation_location}
-                  </span>
-                </div>
-                <Icon name="hiking" className="text-terracotta text-[22px] shrink-0" />
+          {startingPoints.map((sp) => {
+            const remaining = capacityByStartingPoint[sp.id] ?? null;
+            const isFull = remaining !== null && remaining <= 0;
+            const isLow = remaining !== null && remaining > 0 && remaining < LOW_CAPACITY_THRESHOLD;
+            return (
+              <div key={sp.id}>
+                <label
+                  className={`relative flex items-center gap-3 p-4 rounded-xl transition-colors ${
+                    isFull
+                      ? "bg-neutral-100 cursor-not-allowed opacity-75"
+                      : "bg-neutral-50 hover:bg-mist cursor-pointer"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    value={sp.id}
+                    disabled={isFull}
+                    className="w-5 h-5 accent-terracotta cursor-pointer disabled:cursor-not-allowed"
+                    {...register("startingPointId")}
+                  />
+                  <div className="flex-1 flex items-center justify-between gap-2">
+                    <div>
+                      <span className="font-semibold text-sm text-neutral-900 block">{sp.name}</span>
+                      <span className="text-xs text-neutral-500">
+                        Presentarse {sp.presentation_time.slice(0, 5)}hs en {sp.presentation_location}
+                      </span>
+                      {isFull && (
+                        <span className="mt-1 inline-block rounded-full bg-danger-bg px-2 py-0.5 text-xs font-bold text-danger">
+                          Sin cupos disponibles
+                        </span>
+                      )}
+                      {isLow && (
+                        <span className="mt-1 inline-block rounded-full bg-warning-bg px-2 py-0.5 text-xs font-bold text-warning">
+                          ¡Quedan {remaining} lugar{remaining === 1 ? "" : "es"}!
+                        </span>
+                      )}
+                    </div>
+                    <Icon name="hiking" className="text-terracotta text-[22px] shrink-0" />
+                  </div>
+                </label>
+                {isFull && (
+                  <WaitlistSignupForm
+                    eventId={event.id}
+                    startingPointId={sp.id}
+                    startingPointName={sp.name}
+                  />
+                )}
               </div>
-            </label>
-          ))}
+            );
+          })}
           {errors.startingPointId && <p className={errorClass}>{errors.startingPointId.message}</p>}
         </div>
         <label className="p-4 rounded-xl bg-mist/60 flex items-start gap-3 cursor-pointer">

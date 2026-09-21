@@ -2,15 +2,21 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { EventRow, StartingPointRow } from "@/lib/types";
-import { RegistrationForm } from "@/components/registration/RegistrationForm";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getCapacityByStartingPoint } from "@/lib/capacity";
+import { verifyWaitlistToken } from "@/lib/magicLink";
+import type { EventRow, StartingPointRow, WaitlistEntryRow } from "@/lib/types";
+import { RegistrationForm, type RegistrationPrefill } from "@/components/registration/RegistrationForm";
 
 export default async function RegistroPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ eventId: string }>;
+  searchParams: Promise<{ wl?: string }>;
 }) {
   const { eventId } = await params;
+  const { wl } = await searchParams;
   const supabase = await createClient();
 
   const { data: event } = await supabase
@@ -63,6 +69,40 @@ export default async function RegistroPage({
     .eq("is_active", true)
     .order("name")
     .returns<StartingPointRow[]>();
+
+  // `registrations` es admin-only por RLS — para calcular cupos desde una
+  // página pública (sin sesión) hace falta el cliente con service role.
+  const adminSupabase = createAdminClient();
+  const capacityMap = await getCapacityByStartingPoint(adminSupabase, eventId);
+  const capacityByStartingPoint = Object.fromEntries(
+    Object.entries(capacityMap).map(([spId, c]) => [spId, c.remaining]),
+  );
+
+  // Link de invitación de lista de espera: /registro/[eventId]?wl=<id>.<token>
+  let prefill: RegistrationPrefill | undefined;
+  if (wl) {
+    const [waitlistEntryId, token] = wl.split(".");
+    if (waitlistEntryId && verifyWaitlistToken(waitlistEntryId, token)) {
+      const { data: entry } = await adminSupabase
+        .from("waitlist_entries")
+        .select("*")
+        .eq("id", waitlistEntryId)
+        .eq("event_id", eventId)
+        .eq("status", "invited")
+        .maybeSingle<WaitlistEntryRow>();
+      if (entry) {
+        prefill = {
+          waitlistEntryId: entry.id,
+          startingPointId: entry.starting_point_id,
+          firstName: entry.first_name,
+          lastName: entry.last_name,
+          dni: entry.dni,
+          phone: entry.phone,
+          email: entry.email,
+        };
+      }
+    }
+  }
 
   const serviceChips = [
     { icon: "directions_bus", label: "Micro de apoyo" },
@@ -139,6 +179,8 @@ export default async function RegistroPage({
       <RegistrationForm
         event={event}
         startingPoints={startingPoints ?? []}
+        capacityByStartingPoint={capacityByStartingPoint}
+        prefill={prefill}
       />
 
       <footer className="mt-10 flex flex-col items-center gap-4 text-center">

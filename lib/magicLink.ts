@@ -27,3 +27,23 @@ export function verifyMagicToken(registrationId: string, token: string | undefin
 export function magicLinkPath(registrationId: string): string {
   return `/mi-inscripcion/${registrationId}?token=${generateMagicToken(registrationId)}`;
 }
+
+// Mismo esquema que el magic link de arriba, pero con el id namespaceado
+// ("waitlist:" + id) para que un token de invitación de lista de espera no
+// sirva como token de /mi-inscripcion de una fila que casualmente tuviera
+// el mismo uuid (o viceversa).
+export function generateWaitlistToken(waitlistEntryId: string): string {
+  return crypto.createHmac("sha256", secret()).update(`waitlist:${waitlistEntryId}`).digest("hex");
+}
+
+export function verifyWaitlistToken(waitlistEntryId: string, token: string | undefined | null): boolean {
+  if (!token) return false;
+  const expected = Buffer.from(generateWaitlistToken(waitlistEntryId), "hex");
+  const received = Buffer.from(token, "hex");
+  if (expected.length !== received.length) return false;
+  return crypto.timingSafeEqual(expected, received);
+}
+
+export function waitlistInvitePath(eventId: string, waitlistEntryId: string): string {
+  return `/registro/${eventId}?wl=${waitlistEntryId}.${generateWaitlistToken(waitlistEntryId)}`;
+}

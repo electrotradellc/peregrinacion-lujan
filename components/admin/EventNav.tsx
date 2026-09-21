@@ -16,6 +16,7 @@ export function EventNav({ eventId }: { eventId: string }) {
   const items = [
     { href: `${base}/config`, label: "Config", active: pathname === `${base}/config` },
     { href: `${base}/inscripciones`, label: "Inscripciones", active: pathname === `${base}/inscripciones` },
+    { href: `${base}/lista-espera`, label: "Lista de espera", active: pathname === `${base}/lista-espera` },
     { href: `${base}/asistencia`, label: "Asistencia", active: isAsistenciaRoute && !isVuelta },
     { href: `${base}/asistencia?direction=return`, label: "Vuelta", active: isVuelta },
   ];

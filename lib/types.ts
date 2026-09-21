@@ -19,6 +19,7 @@ export type PaymentStatus =
   | "cancelled";
 export type AssignmentDirection = "outbound" | "return";
 export type CheckinEventType = "arrival" | "departure" | "support_vehicle";
+export type WaitlistStatus = "waiting" | "invited" | "completed" | "cancelled";
 
 export interface EventRow {
   id: string;
@@ -167,6 +168,22 @@ export interface AttendanceCheckinRow {
   device_id: string | null;
   client_created_at: string;
   synced_at: string;
+}
+
+export interface WaitlistEntryRow {
+  id: string;
+  event_id: string;
+  starting_point_id: string;
+  first_name: string;
+  last_name: string;
+  dni: string;
+  phone: string;
+  email: string;
+  status: WaitlistStatus;
+  invited_at: string | null;
+  registration_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface EventAuditLogRow {
