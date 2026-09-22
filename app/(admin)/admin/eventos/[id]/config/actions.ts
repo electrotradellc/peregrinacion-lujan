@@ -18,6 +18,7 @@ export async function updateEventSettingsAction(eventId: string, formData: FormD
       event_date: String(formData.get("event_date")),
       registration_price_ars: Number(formData.get("registration_price_ars")),
       status: String(formData.get("status")),
+      registration_invite_only: formData.get("registration_invite_only") === "on",
       whatsapp_group_invite_url: String(formData.get("whatsapp_group_invite_url") || "") || null,
       payment_alias: String(formData.get("payment_alias") || "") || null,
       contact_email: String(formData.get("contact_email") || "") || null,

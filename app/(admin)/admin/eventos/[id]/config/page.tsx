@@ -137,6 +137,25 @@ export default async function EventConfigPage({
                 <option value="archived">Archivado</option>
               </select>
             </div>
+            <div className="sm:col-span-3">
+              <label className="flex items-start gap-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  name="registration_invite_only"
+                  defaultChecked={event.registration_invite_only}
+                  className="mt-0.5"
+                />
+                <span>
+                  Inscripción solo por invitación
+                  <span className="block text-xs font-normal text-neutral-500">
+                    Cierra el paso directo del formulario público — quien entre a /registro sin un
+                    link de invitación de la lista de espera solo puede anotarse en la lista, no
+                    inscribirse. Los links de invitación que ya mandaste desde Lista de espera
+                    siguen funcionando igual.
+                  </span>
+                </span>
+              </label>
+            </div>
             <div>
               <label className="block text-sm font-medium">Link del grupo de WhatsApp</label>
               <input

@@ -7,6 +7,7 @@ import { getCapacityByStartingPoint } from "@/lib/capacity";
 import { verifyWaitlistToken } from "@/lib/magicLink";
 import type { EventRow, StartingPointRow, WaitlistEntryRow } from "@/lib/types";
 import { RegistrationForm, type RegistrationPrefill } from "@/components/registration/RegistrationForm";
+import { WaitlistSignupForm } from "@/components/registration/WaitlistSignupForm";
 
 export default async function RegistroPage({
   params,
@@ -70,13 +71,10 @@ export default async function RegistroPage({
     .order("name")
     .returns<StartingPointRow[]>();
 
-  // `registrations` es admin-only por RLS — para calcular cupos desde una
-  // página pública (sin sesión) hace falta el cliente con service role.
+  // `registrations` y `waitlist_entries` son admin-only por RLS — para leer
+  // cupos o resolver un link de invitación desde una página pública (sin
+  // sesión) hace falta el cliente con service role.
   const adminSupabase = createAdminClient();
-  const capacityMap = await getCapacityByStartingPoint(adminSupabase, eventId);
-  const capacityByStartingPoint = Object.fromEntries(
-    Object.entries(capacityMap).map(([spId, c]) => [spId, c.remaining]),
-  );
 
   // Link de invitación de lista de espera: /registro/[eventId]?wl=<id>.<token>
   let prefill: RegistrationPrefill | undefined;
@@ -103,6 +101,18 @@ export default async function RegistroPage({
       }
     }
   }
+
+  // Con el modo "solo por invitación" prendido, nadie sin un link de
+  // invitación válido llega a ver el formulario — solo la lista de espera.
+  const inviteOnlyBlocked = event.registration_invite_only && !prefill;
+
+  const capacityByStartingPoint = inviteOnlyBlocked
+    ? {}
+    : Object.fromEntries(
+        Object.entries(await getCapacityByStartingPoint(adminSupabase, eventId)).map(
+          ([spId, c]) => [spId, c.remaining],
+        ),
+      );
 
   const serviceChips = [
     { icon: "directions_bus", label: "Micro de apoyo" },
@@ -176,12 +186,41 @@ export default async function RegistroPage({
         </div>
       </section>
 
-      <RegistrationForm
-        event={event}
-        startingPoints={startingPoints ?? []}
-        capacityByStartingPoint={capacityByStartingPoint}
-        prefill={prefill}
-      />
+      {inviteOnlyBlocked ? (
+        <div className="flex flex-col gap-6">
+          <div className="flex items-start gap-3 rounded-3xl bg-info-bg p-4 text-sm text-info shadow-sm">
+            <span className="material-symbols-outlined text-[20px] shrink-0">mail</span>
+            <p className="text-neutral-700 leading-relaxed">
+              <strong className="text-neutral-900">La inscripción directa está cerrada por el momento.</strong>{" "}
+              Anotate en la lista de espera del punto de partida que te quede mejor — si se libera
+              un lugar, te vamos a avisar por email con un link para completar tu inscripción.
+            </p>
+          </div>
+          {(startingPoints ?? []).map((sp) => (
+            <div key={sp.id} className="bg-white rounded-3xl p-5 md:p-6 shadow-sm flex flex-col gap-3">
+              <div>
+                <h2 className="font-semibold text-[17px] text-brand-ink leading-tight">{sp.name}</h2>
+                <p className="text-xs text-neutral-500">
+                  Presentarse {sp.presentation_time.slice(0, 5)}hs en {sp.presentation_location}
+                </p>
+              </div>
+              <WaitlistSignupForm
+                eventId={event.id}
+                startingPointId={sp.id}
+                startingPointName={sp.name}
+                defaultOpen
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <RegistrationForm
+          event={event}
+          startingPoints={startingPoints ?? []}
+          capacityByStartingPoint={capacityByStartingPoint}
+          prefill={prefill}
+        />
+      )}
 
       <footer className="mt-10 flex flex-col items-center gap-4 text-center">
         <div className="flex flex-wrap items-center justify-center gap-3 text-xs">

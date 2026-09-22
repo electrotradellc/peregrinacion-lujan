@@ -14,12 +14,14 @@ export function WaitlistSignupForm({
   eventId,
   startingPointId,
   startingPointName,
+  defaultOpen = false,
 }: {
   eventId: string;
   startingPointId: string;
   startingPointName: string;
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);

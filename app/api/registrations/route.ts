@@ -6,7 +6,7 @@ import {
   registrationFieldsSchema,
   validatePhotoFile,
 } from "@/lib/validation/registrationSchema";
-import type { EventRow, RegistrationRow, StartingPointRow } from "@/lib/types";
+import type { EventRow, RegistrationRow, StartingPointRow, WaitlistEntryRow } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -41,6 +41,8 @@ export async function POST(request: Request) {
     );
   }
   const data = parsed.data;
+  const waitlistEntryIdRaw = formData.get("waitlistEntryId");
+  const waitlistEntryId = typeof waitlistEntryIdRaw === "string" && waitlistEntryIdRaw ? waitlistEntryIdRaw : null;
 
   const dniPhoto = formData.get("dniPhoto");
   const insurancePhoto = formData.get("healthInsuranceCardPhoto");
@@ -80,6 +82,32 @@ export async function POST(request: Request) {
       { error: "Ese punto de partida ya no está disponible. Elegí otro para continuar." },
       { status: 400 },
     );
+  }
+
+  // Con el evento en modo "solo por invitación", la UI de /registro ni
+  // siquiera muestra el formulario sin un link de invitación válido — esto
+  // es el cierre real, del lado del servidor, para que no se pueda saltear
+  // pegándole directo a este endpoint.
+  if (event.registration_invite_only) {
+    const { data: waitlistEntry } = waitlistEntryId
+      ? await supabase
+          .from("waitlist_entries")
+          .select("*")
+          .eq("id", waitlistEntryId)
+          .eq("event_id", data.eventId)
+          .eq("starting_point_id", data.startingPointId)
+          .eq("status", "invited")
+          .maybeSingle<WaitlistEntryRow>()
+      : { data: null };
+    if (!waitlistEntry) {
+      return NextResponse.json(
+        {
+          error:
+            "La inscripción directa está cerrada por el momento. Anotate en la lista de espera y te avisamos si se libera un lugar.",
+        },
+        { status: 403 },
+      );
+    }
   }
 
   // Tope por punto de salida (no global) para evitar sobreventa de los
@@ -190,8 +218,7 @@ export async function POST(request: Request) {
   // círculo (mejor esfuerzo: si esto falla, la inscripción ya quedó
   // guardada igual, no bloqueamos al peregrino por esto). El `eq status
   // invited` evita reabrir una entrada ya cancelada o reutilizada.
-  const waitlistEntryId = formData.get("waitlistEntryId");
-  if (typeof waitlistEntryId === "string" && waitlistEntryId) {
+  if (waitlistEntryId) {
     try {
       await supabase
         .from("waitlist_entries")
