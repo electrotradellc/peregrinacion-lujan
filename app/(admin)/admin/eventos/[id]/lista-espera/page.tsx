@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCapacityByStartingPoint } from "@/lib/capacity";
 import type { EventRow, StartingPointRow, WaitlistEntryRow } from "@/lib/types";
-import { inviteWaitlistAction, cancelWaitlistEntryAction } from "./actions";
+import { inviteWaitlistAction, inviteWaitlistEntryAction, cancelWaitlistEntryAction } from "./actions";
 
 const waitlistStatusLabel: Record<string, string> = {
   waiting: "Esperando",
@@ -57,8 +57,9 @@ export default async function ListaEsperaPage({
       <h1 className="text-xl font-semibold">Lista de espera — {event.name}</h1>
       <p className="text-sm text-neutral-600">
         Gente que se anotó porque no quedaban cupos en su punto de partida. Si agregás o agrandás
-        un micro en Config, volvé acá y notificá a los primeros de la cola — les llega un email
-        con un link a la inscripción, ya con sus datos precargados.
+        un micro en Config, volvé acá y notificá a los primeros de la cola, o invitá a una persona
+        puntual con el botón &ldquo;Invitar&rdquo; de su fila — en los dos casos les llega un
+        email con un link a la inscripción, ya con sus datos precargados.
       </p>
 
       {(startingPoints ?? []).map((sp) => {
@@ -144,6 +145,13 @@ export default async function ListaEsperaPage({
                       >
                         {waitlistStatusLabel[entry.status]}
                       </span>
+                      {(entry.status === "waiting" || entry.status === "invited") && (
+                        <form action={inviteWaitlistEntryAction.bind(null, id, entry.id)}>
+                          <button className="text-xs text-blue-700 hover:underline">
+                            {entry.status === "waiting" ? "Invitar" : "Reenviar invitación"}
+                          </button>
+                        </form>
+                      )}
                       {(entry.status === "waiting" || entry.status === "invited") && (
                         <form action={cancelWaitlistEntryAction.bind(null, id, entry.id)}>
                           <button className="text-xs text-red-600 hover:underline">Cancelar</button>
