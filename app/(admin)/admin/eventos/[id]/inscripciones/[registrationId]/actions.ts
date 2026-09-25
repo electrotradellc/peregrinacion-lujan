@@ -16,9 +16,31 @@ export async function updateRegistrationAction(
   const supabase = await createClient();
   const bool = (name: string) => formData.get(name) === "on";
 
+  const { data: current } = await supabase
+    .from("registrations")
+    .select("starting_point_id")
+    .eq("id", registrationId)
+    .single<Pick<RegistrationRow, "starting_point_id">>();
+  if (!current) throw new Error("No se encontró la inscripción");
+
+  const newStartingPointId = String(formData.get("starting_point_id") || "") || current.starting_point_id;
+  const startingPointChanged = newStartingPointId !== current.starting_point_id;
+
+  // Los micros pertenecen a un único punto de partida (hay un trigger que lo
+  // exige al asignar) — una asignación del punto viejo quedaría inconsistente,
+  // así que se borra y la persona queda para reasignar en el punto nuevo.
+  if (startingPointChanged) {
+    const { error: unassignError } = await supabase
+      .from("bus_assignments")
+      .delete()
+      .eq("registration_id", registrationId);
+    if (unassignError) throw new Error(unassignError.message);
+  }
+
   const { error } = await supabase
     .from("registrations")
     .update({
+      starting_point_id: newStartingPointId,
       first_name: String(formData.get("first_name")),
       last_name: String(formData.get("last_name")),
       dni: String(formData.get("dni")),
@@ -48,7 +70,28 @@ export async function updateRegistrationAction(
     .eq("id", registrationId);
 
   if (error) throw new Error(error.message);
+
+  if (startingPointChanged) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { data: points } = await supabase
+      .from("starting_points")
+      .select("id, name")
+      .in("id", [current.starting_point_id, newStartingPointId]);
+    const nameOf = (spId: string) => points?.find((p) => p.id === spId)?.name ?? spId;
+    await supabase.from("event_audit_log").insert({
+      event_id: eventId,
+      actor_id: user?.id,
+      action: "registration_starting_point_changed",
+      entity_table: "registrations",
+      entity_id: registrationId,
+      diff: { from: nameOf(current.starting_point_id), to: nameOf(newStartingPointId) },
+    });
+  }
+
   revalidatePath(`/admin/eventos/${eventId}/inscripciones/${registrationId}`);
+  revalidatePath(`/admin/eventos/${eventId}/inscripciones`);
 }
 
 export async function setRegistrationStatusAction(

@@ -1,6 +1,15 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { RegistrationRow, StartingPointRow, EventAuditLogRow, ProfileRow, EventRow } from "@/lib/types";
+import type {
+  RegistrationRow,
+  StartingPointRow,
+  EventAuditLogRow,
+  ProfileRow,
+  EventRow,
+  BusAssignmentRow,
+  BusRow,
+} from "@/lib/types";
+import { getCapacityByStartingPoint } from "@/lib/capacity";
 import { updateRegistrationAction, setRegistrationStatusAction } from "./actions";
 import { DeleteRegistrationButton } from "@/components/admin/DeleteRegistrationButton";
 import { magicLinkPath } from "@/lib/magicLink";
@@ -15,7 +24,16 @@ const auditActionLabel: Record<string, string> = {
   registration_status_set_cancelled: "Inscripción cancelada",
   registration_status_set_pending_payment: "Vuelta a pendiente de pago",
   registration_no_show: "No se presentó en la Parroquia",
+  registration_starting_point_changed: "Cambio de punto de partida",
 };
+
+function auditDetail(entry: EventAuditLogRow): string {
+  const diff = entry.diff as { from?: string; to?: string } | null;
+  if (entry.action === "registration_starting_point_changed" && diff?.from && diff?.to) {
+    return ` (${diff.from} → ${diff.to})`;
+  }
+  return "";
+}
 
 export default async function RegistrationDetailPage({
   params,
@@ -44,6 +62,34 @@ export default async function RegistrationDetailPage({
     ]);
 
   if (!registration) notFound();
+
+  const [capacityByStartingPoint, { data: assignments }] = await Promise.all([
+    getCapacityByStartingPoint(supabase, id),
+    supabase
+      .from("bus_assignments")
+      .select("*")
+      .eq("registration_id", registrationId)
+      .returns<BusAssignmentRow[]>(),
+  ]);
+  const assignedBusIds = (assignments ?? []).map((a) => a.bus_id);
+  const { data: assignedBuses } = assignedBusIds.length
+    ? await supabase.from("buses").select("*").in("id", assignedBusIds).returns<BusRow[]>()
+    : { data: [] as BusRow[] };
+  const assignedBusLabel = (assignments ?? [])
+    .map((a) => {
+      const bus = assignedBuses?.find((b) => b.id === a.bus_id);
+      return bus ? `Micro ${bus.bus_number} (${a.direction === "outbound" ? "ida" : "vuelta"})` : null;
+    })
+    .filter(Boolean)
+    .join(", ");
+
+  const startingPointOptionLabel = (sp: StartingPointRow) => {
+    if (sp.id === registration.starting_point_id) return `${sp.name} (actual)`;
+    const remaining = capacityByStartingPoint[sp.id]?.remaining ?? null;
+    if (remaining === null) return sp.name;
+    if (remaining <= 0) return `${sp.name} — LLENO, se pasa igual`;
+    return `${sp.name} — ${remaining} libre${remaining === 1 ? "" : "s"}`;
+  };
 
   const age = event ? calculateAge(registration.birth_date, event.event_date) : null;
   const isMinor = age !== null && age < 18;
@@ -144,7 +190,8 @@ export default async function RegistrationDetailPage({
         <ul className="space-y-1 text-sm">
           {(auditLog ?? []).map((entry) => (
             <li key={entry.id}>
-              {auditActionLabel[entry.action] ?? entry.action} — {actorName(entry.actor_id)} —{" "}
+              {auditActionLabel[entry.action] ?? entry.action}
+              {auditDetail(entry)} — {actorName(entry.actor_id)} —{" "}
               {new Date(entry.created_at).toLocaleString("es-AR", {
                 timeZone: "America/Argentina/Buenos_Aires",
               })}
@@ -193,11 +240,23 @@ export default async function RegistrationDetailPage({
           </div>
           <div>
             <label className="text-sm font-medium">Punto de partida</label>
-            <input
-              disabled
-              value={startingPoints?.find((sp) => sp.id === registration.starting_point_id)?.name ?? ""}
-              className={`${inputClass} bg-neutral-100`}
-            />
+            <select
+              name="starting_point_id"
+              defaultValue={registration.starting_point_id}
+              className={inputClass}
+            >
+              {(startingPoints ?? []).map((sp) => (
+                <option key={sp.id} value={sp.id}>
+                  {startingPointOptionLabel(sp)}
+                </option>
+              ))}
+            </select>
+            {assignedBusLabel && (
+              <p className="mt-1 text-xs text-amber-700">
+                Tiene asignado {assignedBusLabel}. Si cambiás el punto de partida, se le quita el
+                micro y queda para reasignar en el punto nuevo.
+              </p>
+            )}
           </div>
         </div>
 
