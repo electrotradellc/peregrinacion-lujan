@@ -106,13 +106,24 @@ export default async function RegistroPage({
   // invitación válido llega a ver el formulario — solo la lista de espera.
   const inviteOnlyBlocked = event.registration_invite_only && !prefill;
 
-  const capacityByStartingPoint = inviteOnlyBlocked
+  const capacityByStartingPoint: Record<string, number | null> = inviteOnlyBlocked
     ? {}
     : Object.fromEntries(
         Object.entries(await getCapacityByStartingPoint(adminSupabase, eventId)).map(
           ([spId, c]) => [spId, c.remaining],
         ),
       );
+
+  // Si se invitó a más gente que lugares libres, los que abren el link tarde
+  // no tienen que ver "¡se liberó un cupo!" junto a un punto bloqueado: ven
+  // directamente que ya se ocupó. La entrada sigue "invited", así que si se
+  // libera otro lugar el admin le reenvía la invitación y este mismo link
+  // vuelve a mostrar el formulario.
+  const invitedPointRemaining = prefill ? (capacityByStartingPoint[prefill.startingPointId] ?? null) : null;
+  const invitedPointFull = invitedPointRemaining !== null && invitedPointRemaining <= 0;
+  const invitedPointName = prefill
+    ? (startingPoints ?? []).find((sp) => sp.id === prefill.startingPointId)?.name
+    : undefined;
 
   const serviceChips = [
     { icon: "directions_bus", label: "Micro de apoyo" },
@@ -212,6 +223,17 @@ export default async function RegistroPage({
               />
             </div>
           ))}
+        </div>
+      ) : invitedPointFull ? (
+        <div className="flex items-start gap-3 rounded-3xl bg-warning-bg p-5 text-sm shadow-sm">
+          <span className="material-symbols-outlined text-warning text-[22px] shrink-0">hourglass_top</span>
+          <p className="text-neutral-700 leading-relaxed">
+            <strong className="block text-neutral-900 mb-1">
+              Los lugares{invitedPointName ? ` para salir desde ${invitedPointName}` : ""} ya se ocuparon.
+            </strong>
+            Otras personas invitadas completaron su inscripción antes. Seguís en la lista de espera:
+            si se libera otro lugar, te vamos a avisar por email.
+          </p>
         </div>
       ) : (
         <RegistrationForm

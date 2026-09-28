@@ -129,7 +129,11 @@ export async function POST(request: Request) {
   const totalCapacity = (buses ?? []).reduce((sum, b) => sum + b.capacity, 0);
   if (totalCapacity > 0 && (activeCount ?? 0) >= totalCapacity) {
     return NextResponse.json(
-      { error: `Ya no quedan cupos disponibles para salir desde ${startingPoint.name} por el momento.` },
+      {
+        error: waitlistEntryId
+          ? `Los lugares para salir desde ${startingPoint.name} se ocuparon mientras completabas el formulario. Seguís en la lista de espera: si se libera otro lugar, te avisamos por email.`
+          : `Ya no quedan cupos disponibles para salir desde ${startingPoint.name} por el momento.`,
+      },
       { status: 400 },
     );
   }
