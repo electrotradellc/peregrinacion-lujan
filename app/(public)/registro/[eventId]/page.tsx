@@ -77,30 +77,43 @@ export default async function RegistroPage({
   const adminSupabase = createAdminClient();
 
   // Link de invitación de lista de espera: /registro/[eventId]?wl=<id>.<token>
+  // Si el link no sirve, se le dice exactamente por qué en vez de caer en el
+  // cartel genérico de "inscripción cerrada", que se lee como "no hay lugar".
   let prefill: RegistrationPrefill | undefined;
+  let inviteProblem: "invalid" | "completed" | "cancelled" | "point_closed" | null = null;
   if (wl) {
     const [waitlistEntryId, token] = wl.split(".");
-    if (waitlistEntryId && verifyWaitlistToken(waitlistEntryId, token)) {
-      const { data: entry } = await adminSupabase
-        .from("waitlist_entries")
-        .select("*")
-        .eq("id", waitlistEntryId)
-        .eq("event_id", eventId)
-        .eq("status", "invited")
-        .maybeSingle<WaitlistEntryRow>();
-      if (entry) {
-        prefill = {
-          waitlistEntryId: entry.id,
-          startingPointId: entry.starting_point_id,
-          firstName: entry.first_name,
-          lastName: entry.last_name,
-          dni: entry.dni,
-          phone: entry.phone,
-          email: entry.email,
-        };
-      }
+    const { data: entry } =
+      waitlistEntryId && verifyWaitlistToken(waitlistEntryId, token)
+        ? await adminSupabase
+            .from("waitlist_entries")
+            .select("*")
+            .eq("id", waitlistEntryId)
+            .eq("event_id", eventId)
+            .maybeSingle<WaitlistEntryRow>()
+        : { data: null };
+
+    if (!entry || entry.status === "waiting") {
+      inviteProblem = "invalid";
+    } else if (entry.status === "completed") {
+      inviteProblem = "completed";
+    } else if (entry.status === "cancelled") {
+      inviteProblem = "cancelled";
+    } else if (!(startingPoints ?? []).some((sp) => sp.id === entry.starting_point_id)) {
+      inviteProblem = "point_closed";
+    } else {
+      prefill = {
+        waitlistEntryId: entry.id,
+        startingPointId: entry.starting_point_id,
+        firstName: entry.first_name,
+        lastName: entry.last_name,
+        dni: entry.dni,
+        phone: entry.phone,
+        email: entry.email,
+      };
     }
   }
+  const contactEmail = event.contact_email ?? "lujanpsil@gmail.com";
 
   // Con el modo "solo por invitación" prendido, nadie sin un link de
   // invitación válido llega a ver el formulario — solo la lista de espera.
@@ -197,7 +210,57 @@ export default async function RegistroPage({
         </div>
       </section>
 
-      {inviteOnlyBlocked ? (
+      {inviteProblem ? (
+        <div className="flex items-start gap-3 rounded-3xl bg-warning-bg p-5 text-sm shadow-sm">
+          <span className="material-symbols-outlined text-warning text-[22px] shrink-0">
+            {inviteProblem === "completed" ? "task_alt" : "link_off"}
+          </span>
+          <div className="text-neutral-700 leading-relaxed">
+            {inviteProblem === "invalid" && (
+              <>
+                <strong className="block text-neutral-900 mb-1">Este link de invitación no es válido.</strong>
+                Puede que se haya cortado al copiarlo. Volvé a abrirlo tocándolo directamente desde el
+                email que te mandamos. Si sigue sin funcionar, escribinos a {contactEmail}.
+              </>
+            )}
+            {inviteProblem === "completed" && (
+              <>
+                <strong className="block text-neutral-900 mb-1">
+                  Ya completaste tu inscripción con esta invitación.
+                </strong>
+                Para ver el estado de tu inscripción y los datos de pago, usá{" "}
+                <Link href="/recuperar" className="text-brand-ink underline underline-offset-2">
+                  Recuperar mi link
+                </Link>
+                .
+              </>
+            )}
+            {inviteProblem === "cancelled" && (
+              <>
+                <strong className="block text-neutral-900 mb-1">Esta invitación fue cancelada.</strong>
+                Si creés que es un error, escribinos a {contactEmail}.
+              </>
+            )}
+            {inviteProblem === "point_closed" && (
+              <>
+                <strong className="block text-neutral-900 mb-1">
+                  El punto de partida de tu invitación ya no está disponible.
+                </strong>
+                Escribinos a {contactEmail} y lo resolvemos.
+              </>
+            )}
+            {!event.registration_invite_only && inviteProblem === "invalid" && (
+              <p className="mt-2">
+                También podés{" "}
+                <Link href={`/registro/${event.id}`} className="text-brand-ink underline underline-offset-2">
+                  inscribirte desde el formulario general
+                </Link>
+                .
+              </p>
+            )}
+          </div>
+        </div>
+      ) : inviteOnlyBlocked ? (
         <div className="flex flex-col gap-6">
           <div className="flex items-start gap-3 rounded-3xl bg-info-bg p-4 text-sm text-info shadow-sm">
             <span className="material-symbols-outlined text-[20px] shrink-0">mail</span>

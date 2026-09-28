@@ -419,8 +419,22 @@ export function RegistrationForm({
           icon="route"
         />
         <div className="flex flex-col gap-2">
-          <label className={labelClass}>Elegí tu punto de salida</label>
-          {startingPoints.map((sp) => {
+          <label className={labelClass}>
+            {prefill ? "Tu punto de salida" : "Elegí tu punto de salida"}
+          </label>
+          {prefill && (
+            <p className={helperClass}>
+              Tu invitación es para este punto de partida. Si necesitás cambiarlo, escribinos antes
+              de inscribirte.
+            </p>
+          )}
+          {/* La invitación vale solo para el punto en el que la persona estaba
+              en lista de espera (el servidor rechaza cualquier otro), así que
+              no se le ofrece elegir otro. */}
+          {(prefill
+            ? startingPoints.filter((sp) => sp.id === prefill.startingPointId)
+            : startingPoints
+          ).map((sp) => {
             const remaining = capacityByStartingPoint[sp.id] ?? null;
             const isFull = remaining !== null && remaining <= 0;
             const isLow = remaining !== null && remaining > 0 && remaining < LOW_CAPACITY_THRESHOLD;

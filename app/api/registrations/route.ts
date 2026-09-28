@@ -88,6 +88,8 @@ export async function POST(request: Request) {
   // siquiera muestra el formulario sin un link de invitación válido — esto
   // es el cierre real, del lado del servidor, para que no se pueda saltear
   // pegándole directo a este endpoint.
+  // Cada rechazo dice su motivo real — un único mensaje de "inscripción
+  // cerrada" para todo se leía como "no hay lugar" aunque sí hubiera.
   if (event.registration_invite_only) {
     const { data: waitlistEntry } = waitlistEntryId
       ? await supabase
@@ -95,18 +97,32 @@ export async function POST(request: Request) {
           .select("*")
           .eq("id", waitlistEntryId)
           .eq("event_id", data.eventId)
-          .eq("starting_point_id", data.startingPointId)
-          .eq("status", "invited")
           .maybeSingle<WaitlistEntryRow>()
       : { data: null };
-    if (!waitlistEntry) {
-      return NextResponse.json(
-        {
-          error:
-            "La inscripción directa está cerrada por el momento. Anotate en la lista de espera y te avisamos si se libera un lugar.",
-        },
-        { status: 403 },
-      );
+
+    let inviteError: string | null = null;
+    if (!waitlistEntryId) {
+      inviteError =
+        "La inscripción directa está cerrada por el momento. Anotate en la lista de espera y te avisamos si se libera un lugar.";
+    } else if (!waitlistEntry || waitlistEntry.status === "waiting") {
+      inviteError =
+        "Tu link de invitación no es válido. Volvé a abrirlo tocándolo directamente desde el email que te mandamos.";
+    } else if (waitlistEntry.status === "completed") {
+      inviteError =
+        "Ya completaste tu inscripción con esta invitación. Podés ver su estado desde \"Recuperar mi link\".";
+    } else if (waitlistEntry.status === "cancelled") {
+      inviteError = "Esta invitación fue cancelada. Si creés que es un error, escribinos.";
+    } else if (waitlistEntry.starting_point_id !== data.startingPointId) {
+      const { data: invitedPoint } = await supabase
+        .from("starting_points")
+        .select("name")
+        .eq("id", waitlistEntry.starting_point_id)
+        .maybeSingle<Pick<StartingPointRow, "name">>();
+      inviteError = `Tu invitación es para salir desde ${invitedPoint?.name ?? "otro punto de partida"}. Elegí ese punto para completar la inscripción, o escribinos si necesitás cambiarlo.`;
+    }
+
+    if (inviteError) {
+      return NextResponse.json({ error: inviteError }, { status: 403 });
     }
   }
 
