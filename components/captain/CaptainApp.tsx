@@ -128,12 +128,15 @@ export function CaptainApp({
   // En Luján termina la ida: no hay salida. En la parada de presentación
   // solo se marca que se presentó.
   const hideDeparture = stopId === lastStop?.id || isPresentationStop;
+  // En Luján se marca además quién fue a la Basílica.
+  const showBasilica = stopId === lastStop?.id && !isPresentationStop;
 
   const isChecked = (registrationId: string, eventType: CheckinEventType) =>
     checkinsAtStop.some((c) => c.registrationId === registrationId && c.eventType === eventType);
 
   const notArrivedCount = roster.filter((r) => !isChecked(r.registration_id, "arrival")).length;
   const notDepartedCount = roster.filter((r) => !isChecked(r.registration_id, "departure")).length;
+  const basilicaCount = roster.filter((r) => isChecked(r.registration_id, "basilica")).length;
 
   const filtered = useMemo(() => {
     let rows = roster;
@@ -270,12 +273,18 @@ export function CaptainApp({
             {notDepartedCount} sin salida
           </span>
         )}
+        {showBasilica && (
+          <span className="flex items-center rounded-md bg-blue-50 px-3 py-1.5 text-blue-800">
+            {basilicaCount} fueron a la Basílica
+          </span>
+        )}
       </div>
 
       <ul className="space-y-2">
         {filtered.map((r) => {
           const arrived = isChecked(r.registration_id, "arrival");
           const departed = isChecked(r.registration_id, "departure");
+          const wentToBasilica = isChecked(r.registration_id, "basilica");
           return (
             <li key={r.registration_id} className="rounded-lg border border-neutral-200 bg-white p-3">
               <div className="flex items-center justify-between gap-2">
@@ -308,6 +317,14 @@ export function CaptainApp({
                       className={`rounded-md px-3 py-1.5 text-xs font-semibold ${departed ? "bg-green-700 text-white" : "border border-neutral-300"}`}
                     >
                       {departed ? "✓ Salió" : "Salida"}
+                    </button>
+                  )}
+                  {showBasilica && (
+                    <button
+                      onClick={() => handleCheckin(r.registration_id, "basilica")}
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold ${wentToBasilica ? "bg-blue-700 text-white" : "border border-blue-300 text-blue-800"}`}
+                    >
+                      {wentToBasilica ? "✓ Basílica" : "Basílica"}
                     </button>
                   )}
                 </div>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import type { CheckinEventType } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -9,7 +10,7 @@ interface IncomingCheckin {
   busId: string;
   stopId: string;
   direction: "outbound" | "return";
-  eventType: "arrival" | "departure";
+  eventType: CheckinEventType;
   recordedAt: string;
   deviceId: string;
   clientCreatedAt: string;

@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { recordAttendanceAction, markNoShowAction, undoAttendanceAction } from "@/lib/actions/attendance";
-import type { AssignmentDirection } from "@/lib/types";
+import type { AssignmentDirection, CheckinEventType } from "@/lib/types";
 
 export interface AttendanceRosterEntry {
   registrationId: string;
@@ -19,7 +19,7 @@ export interface AttendanceRosterEntry {
 export interface AttendanceCheckinEntry {
   id: string;
   registrationId: string;
-  eventType: "arrival" | "departure" | "support_vehicle";
+  eventType: CheckinEventType;
   recordedAt: string;
 }
 
@@ -87,9 +87,12 @@ export function AttendanceTable({
   // Micro" solo aplica en Ida (en Vuelta la única parada es Luján).
   const hideArrival = isFinalStop && direction === "return";
   const hideDeparture = isFinalStop && direction === "outbound";
-  const hideSupportVehicle = direction === "return";
+  // En Luján de ida termina la caminata: "Sigue en Micro" no aplica, y en su
+  // lugar se marca quién fue a la Basílica.
+  const showBasilica = isFinalStop && direction === "outbound";
+  const hideSupportVehicle = direction === "return" || showBasilica;
 
-  const findCheckin = (registrationId: string, eventType: "arrival" | "departure") =>
+  const findCheckin = (registrationId: string, eventType: CheckinEventType) =>
     checkinsAtStop.find((c) => c.registrationId === registrationId && c.eventType === eventType);
 
   const supportByRegistration = useMemo(
@@ -107,6 +110,11 @@ export function AttendanceTable({
   );
   const notDepartedCount = useMemo(
     () => roster.filter((r) => !findCheckin(r.registrationId, "departure")).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [roster, checkinsAtStop],
+  );
+  const basilicaCount = useMemo(
+    () => roster.filter((r) => findCheckin(r.registrationId, "basilica")).length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [roster, checkinsAtStop],
   );
@@ -146,7 +154,7 @@ export function AttendanceTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roster, checkinsAtStop, q, filter, sort, isPresentationStop, hideArrival, hideDeparture]);
 
-  function mark(registrationId: string, busId: string, eventType: "arrival" | "departure" | "support_vehicle") {
+  function mark(registrationId: string, busId: string, eventType: CheckinEventType) {
     const key = `${registrationId}-${eventType}`;
     setPendingKey(key);
     startTransition(async () => {
@@ -255,6 +263,11 @@ export function AttendanceTable({
                 {notDepartedCount} sin salida
               </span>
             )}
+            {showBasilica && (
+              <span className="flex items-center rounded-md bg-blue-50 px-3 py-1.5 text-blue-800">
+                {basilicaCount} fueron a la Basílica
+              </span>
+            )}
           </>
         )}
       </div>
@@ -275,6 +288,7 @@ export function AttendanceTable({
                     {hideArrival ? "Salida" : hideDeparture ? "Llegada" : "Llegada / Salida"}
                   </th>
                   {!hideSupportVehicle && <th className="px-3 py-2">Sigue en Micro</th>}
+                  {showBasilica && <th className="px-3 py-2">Basílica</th>}
                 </>
               )}
             </tr>
@@ -283,6 +297,7 @@ export function AttendanceTable({
             {filtered.map((r) => {
               const arrival = findCheckin(r.registrationId, "arrival");
               const departure = findCheckin(r.registrationId, "departure");
+              const basilica = showBasilica ? findCheckin(r.registrationId, "basilica") : undefined;
               const supportCheckin = supportByRegistration.get(r.registrationId);
               const inSupportVehicle = Boolean(supportCheckin);
               return (
@@ -446,6 +461,28 @@ export function AttendanceTable({
                           )}
                         </td>
                       )}
+                      {showBasilica && (
+                        <td className="px-3 py-2">
+                          {basilica ? (
+                            <button
+                              disabled={pending && pendingKey === `${r.registrationId}-basilica-undo`}
+                              onClick={() => undo(basilica)}
+                              title="Tocar para deshacer"
+                              className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-800 hover:bg-red-100 hover:text-red-800 disabled:opacity-50"
+                            >
+                              ✓ Basílica — {formatTime(basilica.recordedAt)} ✕
+                            </button>
+                          ) : (
+                            <button
+                              disabled={pending && pendingKey === `${r.registrationId}-basilica`}
+                              onClick={() => mark(r.registrationId, r.busId, "basilica")}
+                              className="rounded-md border border-blue-300 px-2 py-1 text-xs text-blue-800 hover:bg-blue-50 disabled:opacity-50"
+                            >
+                              Fue a la Basílica
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </>
                   )}
                 </tr>
@@ -456,7 +493,7 @@ export function AttendanceTable({
                 <td
                   colSpan={
                     (showBusColumn ? 1 : 0) +
-                    (isPresentationStop ? 4 : 4 + (hideSupportVehicle ? 0 : 1))
+                    (isPresentationStop ? 4 : 4 + (hideSupportVehicle ? 0 : 1) + (showBasilica ? 1 : 0))
                   }
                   className="px-3 py-6 text-center text-neutral-500"
                 >

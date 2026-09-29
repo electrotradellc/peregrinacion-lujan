@@ -18,7 +18,7 @@ export type PaymentStatus =
   | "refunded"
   | "cancelled";
 export type AssignmentDirection = "outbound" | "return";
-export type CheckinEventType = "arrival" | "departure" | "support_vehicle";
+export type CheckinEventType = "arrival" | "departure" | "support_vehicle" | "basilica";
 export type WaitlistStatus = "waiting" | "invited" | "completed" | "cancelled";
 
 export interface EventRow {
