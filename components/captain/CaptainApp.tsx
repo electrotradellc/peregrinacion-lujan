@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -64,6 +65,11 @@ export function CaptainApp({
   const [updatingRoster, setUpdatingRoster] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
+  // Para avisar "volvió la señal" solo si en algún momento se cortó — si el
+  // referente entró a este modo teniendo señal, no hay nada que avisar.
+  const [wasOffline, setWasOffline] = useState(false);
+  const [returning, setReturning] = useState(false);
+  const router = useRouter();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "no-arrival" | "no-departure">("all");
@@ -87,7 +93,11 @@ export function CaptainApp({
   }, []);
 
   useEffect(() => {
-    const update = () => setOnline(navigator.onLine);
+    const update = () => {
+      const isOnline = navigator.onLine;
+      setOnline(isOnline);
+      if (!isOnline) setWasOffline(true);
+    };
     update();
     const run = () => {
       update();
@@ -175,6 +185,19 @@ export function CaptainApp({
     }
   }
 
+  // Se mandan las marcas pendientes antes de volver, así la planilla (que
+  // lee del server) ya las muestra al abrir. No se cambia de pantalla sola:
+  // en la ruta la señal va y viene, y saltar de pantalla en medio de una
+  // marca confundiría más.
+  async function handleBackToSheet() {
+    setReturning(true);
+    try {
+      await syncPendingCheckins();
+    } finally {
+      router.push(`/capitan/${eventId}/asistencia`);
+    }
+  }
+
   async function handleCheckin(registrationId: string, eventType: CheckinEventType) {
     await recordCheckin({ registrationId, busId, stopId, direction: DIRECTION, eventType, recordedBy });
     if (navigator.onLine) syncPendingCheckins();
@@ -182,6 +205,24 @@ export function CaptainApp({
 
   return (
     <div className="space-y-4 pb-24">
+      {online && wasOffline && (
+        <div className="rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-900">
+          <p className="font-semibold">Volvió la señal.</p>
+          <p className="mt-1">
+            Podés volver a la planilla: ahí también podés deshacer marcas, marcar &quot;micro de
+            apoyo&quot; y &quot;no se presentó&quot;.
+          </p>
+          <button
+            type="button"
+            onClick={handleBackToSheet}
+            disabled={returning}
+            className="mt-3 w-full rounded-md bg-green-700 px-4 py-2 font-semibold text-white disabled:opacity-60"
+          >
+            {returning ? "Enviando marcas y volviendo..." : "Volver a la planilla"}
+          </button>
+        </div>
+      )}
+
       <div className="rounded-lg border border-neutral-200 bg-white p-3 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <span className="font-semibold">Modo sin conexión · Micro {busNumber}</span>
