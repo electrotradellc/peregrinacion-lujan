@@ -10,10 +10,10 @@ export default async function EditUserPage({
   searchParams,
 }: {
   params: Promise<{ userId: string }>;
-  searchParams: Promise<{ saved?: string; invited?: string }>;
+  searchParams: Promise<{ saved?: string; invited?: string; invite_error?: string }>;
 }) {
   const { userId } = await params;
-  const { saved, invited } = await searchParams;
+  const { saved, invited, invite_error: inviteError } = await searchParams;
   const supabase = await createClient();
 
   const [{ data: profile }, { data: events }, { data: buses }, { data: assignments }] =
@@ -49,7 +49,12 @@ export default async function EditUserPage({
       )}
       {invited === "1" && (
         <div className="rounded-md bg-green-50 px-4 py-2 text-sm font-medium text-green-800">
-          ✓ Invitación reenviada por email
+          ✓ Link de acceso reenviado por email
+        </div>
+      )}
+      {inviteError && (
+        <div className="rounded-md bg-red-50 px-4 py-2 text-sm font-medium text-red-800">
+          No se pudo reenviar el acceso: {inviteError}
         </div>
       )}
 
@@ -102,12 +107,12 @@ export default async function EditUserPage({
       <div className="rounded-lg border border-neutral-200 bg-white p-4">
         <h2 className="font-semibold">Acceso</h2>
         <p className="mt-1 text-sm text-neutral-500">
-          Si a esta persona se le venció el link de la invitación antes de definir su
-          contraseña, le podés mandar uno nuevo.
+          Si esta persona no puede entrar (se le venció el link, nunca eligió la contraseña o
+          se la olvidó), mandale un link nuevo para elegir una contraseña.
         </p>
         <form action={resendInviteAction.bind(null, userId)} className="mt-3">
           <button className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-100">
-            Reenviar invitación por email
+            Reenviar acceso por email
           </button>
         </form>
       </div>

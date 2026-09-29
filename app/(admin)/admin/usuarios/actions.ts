@@ -75,32 +75,41 @@ export async function updateUserAction(userId: string, formData: FormData) {
   redirect(`/admin/usuarios/${userId}?saved=1`);
 }
 
-// Genera un link de invitación nuevo y lo manda por mail — para cuando el
-// link original ya venció antes de que la persona llegara a definir su
-// contraseña.
+// Manda un link nuevo para que la persona defina su contraseña. Supabase no
+// genera links de tipo "invite" para cuentas ya confirmadas (pasa cuando
+// alguien abrió la invitación pero nunca terminó de elegir la contraseña, o
+// si el link lo "abrió" antes un escáner de seguridad del mail), así que en
+// ese caso se usa un link de recuperación — /set-password acepta los dos.
 export async function resendInviteAction(userId: string) {
   await requireAdmin();
 
   const admin = createAdminClient();
   const { data: userData, error: userError } = await admin.auth.admin.getUserById(userId);
-  if (userError || !userData.user?.email) {
-    throw new Error(userError?.message ?? "No se encontró el email de este usuario");
+  const user = userData?.user;
+  if (userError || !user?.email) {
+    redirect(`/admin/usuarios/${userId}?invite_error=${encodeURIComponent("No se encontró el email de este usuario.")}`);
   }
 
+  const alreadyConfirmed = Boolean(user.email_confirmed_at);
   const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-    type: "invite",
-    email: userData.user.email,
+    type: alreadyConfirmed ? "recovery" : "invite",
+    email: user.email,
     options: { redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/set-password` },
   });
   if (linkError || !linkData.properties?.action_link) {
-    throw new Error(linkError?.message ?? "No se pudo generar el link de invitación");
+    const message = linkError?.message ?? "No se pudo generar el link.";
+    redirect(`/admin/usuarios/${userId}?invite_error=${encodeURIComponent(message)}`);
   }
 
-  await sendEmail({
-    to: userData.user.email,
-    subject: "Te reenviamos tu invitación — Peregrinación a Luján",
-    text: `Hola,\n\nAcá tenés un link nuevo para entrar y definir tu contraseña (el anterior puede haber vencido):\n${linkData.properties.action_link}\n\nGrupo de Apoyo Luján`,
-  });
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: "Tu acceso — Peregrinación a Luján",
+      text: `Hola,\n\nAcá tenés un link nuevo para elegir tu contraseña y entrar (el anterior puede haber vencido o ya estar usado):\n${linkData.properties.action_link}\n\nEl link sirve una sola vez. Después de elegir la contraseña, entrás siempre desde ${process.env.NEXT_PUBLIC_SITE_URL}/login con tu email y esa contraseña.\n\nGrupo de Apoyo Luján`,
+    });
+  } catch {
+    redirect(`/admin/usuarios/${userId}?invite_error=${encodeURIComponent("Se generó el link pero no se pudo mandar el email.")}`);
+  }
 
   redirect(`/admin/usuarios/${userId}?invited=1`);
 }
