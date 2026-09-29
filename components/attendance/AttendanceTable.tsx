@@ -252,6 +252,22 @@ export function AttendanceTable({
     mark(r.registrationId, r.busId, "withdrawn");
   }
 
+  // Va en la última columna de marcas ("Sigue en Micro" en paradas
+  // intermedias, "Basílica" en Luján), al lado del botón de esa columna.
+  function withdrawButton(r: AttendanceRosterEntry) {
+    if (!canWithdraw) return null;
+    return (
+      <button
+        type="button"
+        disabled={pending && pendingKey === `${r.registrationId}-withdrawn`}
+        onClick={() => withdraw(r)}
+        className="rounded-md border border-red-300 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+      >
+        Se retiró
+      </button>
+    );
+  }
+
   function noShow(registrationId: string) {
     if (!window.confirm("¿Marcar que no se presentó? Va a desaparecer de las asignaciones de micro y del resto de las paradas, igual que una cancelación.")) {
       return;
@@ -377,16 +393,6 @@ export function AttendanceTable({
                   <td className="px-3 py-2 font-mono text-neutral-700">{r.pilgrimCode ?? "—"}</td>
                   <td className="px-3 py-2">
                     {r.lastName}, {r.firstName}
-                    {canWithdraw && !withdrawal && (
-                      <button
-                        type="button"
-                        disabled={pending && pendingKey === `${r.registrationId}-withdrawn`}
-                        onClick={() => withdraw(r)}
-                        className="ml-2 text-[11px] text-neutral-400 underline hover:text-red-700 disabled:opacity-50"
-                      >
-                        Se retiró
-                      </button>
-                    )}
                     {inSupportVehicle && (
                       <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
                         🚐 en micro de apoyo
@@ -539,6 +545,7 @@ export function AttendanceTable({
                       </td>
                       {!hideSupportVehicle && (
                         <td className="px-3 py-2">
+                          <div className="flex flex-wrap items-center gap-2">
                           {supportCheckin ? (
                             <button
                               disabled={pending && pendingKey === `${r.registrationId}-support_vehicle-undo`}
@@ -557,10 +564,13 @@ export function AttendanceTable({
                               Sigue en Micro
                             </button>
                           )}
+                          {withdrawButton(r)}
+                          </div>
                         </td>
                       )}
                       {showBasilica && (
                         <td className="px-3 py-2">
+                          <div className="flex flex-wrap items-center gap-2">
                           {basilica ? (
                             <button
                               disabled={pending && pendingKey === `${r.registrationId}-basilica-undo`}
@@ -579,6 +589,8 @@ export function AttendanceTable({
                               Fue a la Basílica
                             </button>
                           )}
+                          {withdrawButton(r)}
+                          </div>
                         </td>
                       )}
                     </>
