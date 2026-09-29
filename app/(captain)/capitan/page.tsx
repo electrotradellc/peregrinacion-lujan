@@ -22,8 +22,10 @@ export default async function CaptainIndexPage() {
     );
   }
 
+  // La planilla (con señal) es la pantalla principal; el modo sin conexión
+  // queda como respaldo, accesible desde un botón dentro de la planilla.
   if (assignments.length === 1) {
-    redirect(`/capitan/${assignments[0].event_id}`);
+    redirect(`/capitan/${assignments[0].event_id}/asistencia`);
   }
 
   const eventIds = assignments.map((a) => a.event_id);
@@ -41,7 +43,7 @@ export default async function CaptainIndexPage() {
         return (
           <li key={a.id}>
             <Link
-              href={`/capitan/${a.event_id}`}
+              href={`/capitan/${a.event_id}/asistencia`}
               className="block rounded-md border border-neutral-200 bg-white px-4 py-3 hover:bg-neutral-50"
             >
               {event?.name} — Micro {bus?.bus_number}

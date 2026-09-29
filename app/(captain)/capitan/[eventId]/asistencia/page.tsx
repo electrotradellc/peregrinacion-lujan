@@ -7,16 +7,19 @@ import type {
   StopRow,
   BusRow,
   CaptainRosterRow,
-  AssignmentDirection,
+  AttendanceCheckinRow,
 } from "@/lib/types";
 import { AttendanceTable } from "@/components/attendance/AttendanceTable";
+import { OfflineModeBanner } from "@/components/captain/OfflineModeBanner";
 
+// Pantalla principal del referente al loguearse. Solo Ida: la Vuelta la
+// maneja la organización desde Admin → Menú → Vuelta.
 export default async function CaptainAsistenciaPage({
   params,
   searchParams,
 }: {
   params: Promise<{ eventId: string }>;
-  searchParams: Promise<{ direction?: string; stopId?: string }>;
+  searchParams: Promise<{ stopId?: string }>;
 }) {
   const { eventId } = await params;
   const sp = await searchParams;
@@ -41,33 +44,27 @@ export default async function CaptainAsistenciaPage({
     return <p className="text-sm text-neutral-500">Todavía no hay paradas configuradas.</p>;
   }
 
-  const direction: AssignmentDirection = sp.direction === "return" ? "return" : "outbound";
+  const direction = "outbound" as const;
   const lastStop = stops[stops.length - 1];
-  // En Vuelta solo se embarca en Luján (última parada) — no hay otras opciones.
-  const stopId =
-    direction === "return"
-      ? lastStop.id
-      : sp.stopId && stops.some((s) => s.id === sp.stopId)
-        ? sp.stopId
-        : stops[0].id;
+  const stopId = sp.stopId && stops.some((s) => s.id === sp.stopId) ? sp.stopId : stops[0].id;
   const busId = assignment.bus_id;
 
-  const [{ data: rosterRaw }, { data: checkinsAtStop }, { data: supportCheckins }] = await Promise.all([
+  // Todas las marcas de ida del micro (no solo las de esta parada): además
+  // de la tabla, se copian al celular para el modo sin conexión.
+  const [{ data: rosterRaw }, { data: allCheckinsRaw }] = await Promise.all([
     supabase.rpc("get_captain_roster", { p_bus_id: busId, p_direction: direction }),
     supabase
       .from("attendance_checkins")
       .select("*")
       .eq("bus_id", busId)
       .eq("direction", direction)
-      .eq("stop_id", stopId),
-    supabase
-      .from("attendance_checkins")
-      .select("id, registration_id, recorded_at")
-      .eq("bus_id", busId)
-      .eq("direction", direction)
-      .eq("event_type", "support_vehicle"),
+      .returns<AttendanceCheckinRow[]>(),
   ]);
-  const roster = ((rosterRaw ?? []) as CaptainRosterRow[]).map((r) => ({
+  const fullRoster = (rosterRaw ?? []) as CaptainRosterRow[];
+  const allCheckins = allCheckinsRaw ?? [];
+  const checkinsAtStop = allCheckins.filter((c) => c.stop_id === stopId);
+  const supportCheckins = allCheckins.filter((c) => c.event_type === "support_vehicle");
+  const roster = fullRoster.map((r) => ({
     registrationId: r.registration_id,
     busId,
     busNumber: bus?.bus_number ?? 0,
@@ -79,38 +76,22 @@ export default async function CaptainAsistenciaPage({
   }));
 
   const linkTo = (overrides: Record<string, string>) => {
-    const params = new URLSearchParams({ direction, stopId, ...overrides });
+    const params = new URLSearchParams({ stopId, ...overrides });
     return `/capitan/${eventId}/asistencia?${params.toString()}`;
   };
 
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">Asistencia — Micro {bus?.bus_number}</h1>
-      <p className="text-xs text-neutral-500">
-        Esta planilla necesita conexión. Si no tenés señal, usá{" "}
-        <Link href={`/capitan/${eventId}`} className="underline">
-          la app de registro sin conexión
-        </Link>
-        .
-      </p>
+      <OfflineModeBanner
+        eventId={eventId}
+        busId={busId}
+        roster={fullRoster}
+        checkins={allCheckins}
+      />
 
       <div className="flex flex-wrap gap-2 text-sm">
-        <Link
-          href={linkTo({ direction: "outbound" })}
-          className={`rounded-md px-3 py-1.5 ${direction === "outbound" ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
-        >
-          Ida
-        </Link>
-        <Link
-          href={linkTo({ direction: "return" })}
-          className={`rounded-md px-3 py-1.5 ${direction === "return" ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
-        >
-          Vuelta
-        </Link>
-      </div>
-
-      <div className="flex flex-wrap gap-2 text-sm">
-        {(direction === "return" ? [lastStop] : stops).map((s) => (
+        {stops.map((s) => (
           <Link
             key={s.id}
             href={linkTo({ stopId: s.id })}
@@ -126,13 +107,13 @@ export default async function CaptainAsistenciaPage({
         direction={direction}
         stopId={stopId}
         roster={roster}
-        checkinsAtStop={(checkinsAtStop ?? []).map((c) => ({
+        checkinsAtStop={checkinsAtStop.map((c) => ({
           id: c.id,
           registrationId: c.registration_id,
           eventType: c.event_type,
           recordedAt: c.recorded_at,
         }))}
-        supportVehicleCheckins={(supportCheckins ?? []).map((c) => ({
+        supportVehicleCheckins={supportCheckins.map((c) => ({
           id: c.id,
           registrationId: c.registration_id,
           eventType: "support_vehicle" as const,

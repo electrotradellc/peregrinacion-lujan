@@ -51,6 +51,39 @@ export async function saveRoster(entries: RosterEntry[]) {
   await db.roster.bulkPut(entries);
 }
 
+// Reemplaza el listado guardado de un micro por completo (no solo agrega):
+// si alguien cambió de micro o se canceló, tiene que desaparecer del celular.
+export async function replaceRoster(busId: string, entries: RosterEntry[]) {
+  await db.transaction("rw", db.roster, async () => {
+    await db.roster.where({ busId }).delete();
+    await db.roster.bulkPut(entries);
+  });
+}
+
+// Copia al celular las marcas que ya están en el server (hechas desde la
+// planilla con señal), para que el modo sin conexión las muestre igual. Las
+// marcas locales todavía sin enviar (synced 0) no se tocan.
+export async function replaceSyncedCheckins(busId: string, serverCheckins: LocalCheckin[]) {
+  await db.transaction("rw", db.checkins, async () => {
+    const stale = await db.checkins
+      .where({ busId })
+      .filter((c) => c.synced === 1)
+      .primaryKeys();
+    await db.checkins.bulkDelete(stale);
+    await db.checkins.bulkPut(serverCheckins);
+  });
+}
+
+const rosterSavedAtKey = (busId: string) => `peregrinacion_roster_saved_at_${busId}`;
+
+export function setRosterSavedAt(busId: string) {
+  localStorage.setItem(rosterSavedAtKey(busId), new Date().toISOString());
+}
+
+export function getRosterSavedAt(busId: string): string | null {
+  return localStorage.getItem(rosterSavedAtKey(busId));
+}
+
 export async function getRoster(busId: string, direction: AssignmentDirection) {
   return db.roster.where({ busId, direction }).toArray();
 }

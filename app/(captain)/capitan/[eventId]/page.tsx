@@ -35,12 +35,11 @@ export default async function CaptainEventPage({
     .order("sequence_order")
     .returns<StopRow[]>();
 
-  const [{ data: outboundRosterRaw }, { data: returnRosterRaw }] = await Promise.all([
-    supabase.rpc("get_captain_roster", { p_bus_id: assignment.bus_id, p_direction: "outbound" }),
-    supabase.rpc("get_captain_roster", { p_bus_id: assignment.bus_id, p_direction: "return" }),
-  ]);
-  const outboundRoster = (outboundRosterRaw ?? []) as CaptainRosterRow[];
-  const returnRoster = (returnRosterRaw ?? []) as CaptainRosterRow[];
+  // Modo sin conexión del referente — solo Ida (la Vuelta es de Admin).
+  const { data: outboundRosterRaw } = await supabase.rpc("get_captain_roster", {
+    p_bus_id: assignment.bus_id,
+    p_direction: "outbound",
+  });
 
   return (
     <CaptainApp
@@ -49,8 +48,7 @@ export default async function CaptainEventPage({
       busNumber={bus?.bus_number ?? 0}
       recordedBy={session.userId}
       stops={stops ?? []}
-      initialOutboundRoster={outboundRoster ?? []}
-      initialReturnRoster={returnRoster ?? []}
+      initialRoster={(outboundRosterRaw ?? []) as CaptainRosterRow[]}
     />
   );
 }

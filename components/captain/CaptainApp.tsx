@@ -1,12 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, saveRoster, recordCheckin, type RosterEntry } from "@/lib/offline/db";
+import {
+  db,
+  replaceRoster,
+  recordCheckin,
+  getRosterSavedAt,
+  setRosterSavedAt,
+  type RosterEntry,
+} from "@/lib/offline/db";
 import { syncPendingCheckins } from "@/lib/offline/syncQueue";
 import { createClient } from "@/lib/supabase/client";
-import type { AssignmentDirection, CaptainRosterRow, CheckinEventType, StopRow } from "@/lib/types";
+import type { CaptainRosterRow, CheckinEventType, StopRow } from "@/lib/types";
+
+// El referente solo marca la Ida; la Vuelta la maneja Admin.
+const DIRECTION = "outbound" as const;
 
 function hasAnyMedicalFlag(r: CaptainRosterRow) {
   return (
@@ -21,169 +31,211 @@ function hasAnyMedicalFlag(r: CaptainRosterRow) {
   );
 }
 
+function formatSavedAt(iso: string) {
+  return new Date(iso).toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Argentina/Buenos_Aires",
+  });
+}
+
+// Modo sin conexión: las marcas se guardan en el celular (IndexedDB) y se
+// envían solas cuando hay señal. El listado y las marcas ya hechas los deja
+// preparados la planilla con señal (OfflineModeBanner) mientras se usa.
 export function CaptainApp({
   eventId,
   busId,
   busNumber,
   recordedBy,
   stops,
-  initialOutboundRoster,
-  initialReturnRoster,
+  initialRoster,
 }: {
   eventId: string;
   busId: string;
   busNumber: number;
   recordedBy: string;
   stops: StopRow[];
-  initialOutboundRoster: CaptainRosterRow[];
-  initialReturnRoster: CaptainRosterRow[];
+  initialRoster: CaptainRosterRow[];
 }) {
-  const [direction, setDirection] = useState<AssignmentDirection>("outbound");
   const [stopId, setStopId] = useState(stops[0]?.id ?? "");
-  const [lastRosterSync, setLastRosterSync] = useState<string | null>(null);
-  const [syncingRoster, setSyncingRoster] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [updatingRoster, setUpdatingRoster] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [online, setOnline] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState<"all" | "no-arrival" | "no-departure">("all");
+  const [sort, setSort] = useState<"code" | "name">("code");
 
-  const toEntries = (rows: CaptainRosterRow[], dir: AssignmentDirection): RosterEntry[] =>
-    rows.map((r) => ({ ...r, busId, direction: dir, eventId }));
+  const toEntries = (rows: CaptainRosterRow[]): RosterEntry[] =>
+    rows.map((r) => ({ ...r, busId, direction: DIRECTION, eventId }));
 
-  // Primera carga: si el celular todavía no tiene el listado guardado
-  // localmente, lo sembramos con lo que ya vino renderizado del server.
+  // Si el celular todavía no tiene el listado guardado (nunca abrió la
+  // planilla), se usa lo que vino con la página.
   useEffect(() => {
     (async () => {
       const existing = await db.roster.where({ busId }).count();
-      if (existing === 0) {
-        await saveRoster(toEntries(initialOutboundRoster, "outbound"));
-        await saveRoster(toEntries(initialReturnRoster, "return"));
-        setLastRosterSync(new Date().toISOString());
+      if (existing === 0 && initialRoster.length > 0) {
+        await replaceRoster(busId, toEntries(initialRoster));
+        setRosterSavedAt(busId);
       }
+      setSavedAt(getRosterSavedAt(busId));
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync en segundo plano: al reconectar, cada 30s, y una vez al montar.
   useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    update();
     const run = () => {
+      update();
       syncPendingCheckins();
     };
     run();
     window.addEventListener("online", run);
+    window.addEventListener("offline", update);
     const interval = setInterval(run, 30000);
     return () => {
       window.removeEventListener("online", run);
+      window.removeEventListener("offline", update);
       clearInterval(interval);
     };
   }, []);
 
   const roster =
-    useLiveQuery(() => db.roster.where({ busId, direction }).toArray(), [busId, direction]) ?? [];
+    useLiveQuery(() => db.roster.where({ busId, direction: DIRECTION }).toArray(), [busId]) ?? [];
   const checkinsAtStop =
     useLiveQuery(
-      () => db.checkins.where({ busId, direction, stopId }).toArray(),
-      [busId, direction, stopId],
+      () => db.checkins.where({ busId, direction: DIRECTION, stopId }).toArray(),
+      [busId, stopId],
     ) ?? [];
   const pendingCount = useLiveQuery(() => db.checkins.where("synced").equals(0).count()) ?? 0;
 
-  // Luján (última parada) es la única donde se embarca de Vuelta.
   const lastStop = stops[stops.length - 1];
-  const availableStops = direction === "return" ? (lastStop ? [lastStop] : []) : stops;
-  const isLastStop = stopId === lastStop?.id;
-  const hideArrival = isLastStop && direction === "return";
-  const hideDeparture = isLastStop && direction === "outbound";
+  const currentStop = stops.find((s) => s.id === stopId);
+  const isPresentationStop = currentStop?.is_presentation_stop ?? false;
+  // En Luján termina la ida: no hay salida. En la parada de presentación
+  // solo se marca que se presentó.
+  const hideDeparture = stopId === lastStop?.id || isPresentationStop;
 
-  async function handleSyncRoster() {
-    setSyncingRoster(true);
+  const isChecked = (registrationId: string, eventType: CheckinEventType) =>
+    checkinsAtStop.some((c) => c.registrationId === registrationId && c.eventType === eventType);
+
+  const notArrivedCount = roster.filter((r) => !isChecked(r.registration_id, "arrival")).length;
+  const notDepartedCount = roster.filter((r) => !isChecked(r.registration_id, "departure")).length;
+
+  const filtered = useMemo(() => {
+    let rows = roster;
+    if (q.trim()) {
+      const needle = q.trim().toLowerCase();
+      rows = rows.filter(
+        (r) =>
+          r.last_name.toLowerCase().includes(needle) ||
+          r.first_name.toLowerCase().includes(needle) ||
+          String(r.pilgrim_code ?? "").includes(needle),
+      );
+    }
+    if (filter === "no-arrival") {
+      rows = rows.filter((r) => !isChecked(r.registration_id, "arrival"));
+    }
+    if (filter === "no-departure" && !hideDeparture) {
+      rows = rows.filter((r) => !isChecked(r.registration_id, "departure"));
+    }
+    return [...rows].sort((a, b) => {
+      if (sort === "code") {
+        if (a.pilgrim_code === null && b.pilgrim_code === null) return 0;
+        if (a.pilgrim_code === null) return 1;
+        if (b.pilgrim_code === null) return -1;
+        return a.pilgrim_code - b.pilgrim_code;
+      }
+      return a.last_name.localeCompare(b.last_name, "es") || a.first_name.localeCompare(b.first_name, "es");
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roster, checkinsAtStop, q, filter, sort, hideDeparture]);
+
+  async function handleUpdateRoster() {
+    setUpdatingRoster(true);
+    setUpdateError(null);
     try {
       const supabase = createClient();
-      const [{ data: out }, { data: ret }] = await Promise.all([
-        supabase.rpc("get_captain_roster", { p_bus_id: busId, p_direction: "outbound" }),
-        supabase.rpc("get_captain_roster", { p_bus_id: busId, p_direction: "return" }),
-      ]);
-      await saveRoster(toEntries((out as CaptainRosterRow[]) ?? [], "outbound"));
-      await saveRoster(toEntries((ret as CaptainRosterRow[]) ?? [], "return"));
-      setLastRosterSync(new Date().toISOString());
+      const { data, error } = await supabase.rpc("get_captain_roster", {
+        p_bus_id: busId,
+        p_direction: DIRECTION,
+      });
+      if (error) throw error;
+      await replaceRoster(busId, toEntries((data as CaptainRosterRow[]) ?? []));
+      setRosterSavedAt(busId);
+      setSavedAt(getRosterSavedAt(busId));
+    } catch {
+      setUpdateError("No se pudo actualizar. Revisá la señal y probá de nuevo.");
     } finally {
-      setSyncingRoster(false);
+      setUpdatingRoster(false);
     }
   }
 
   async function handleCheckin(registrationId: string, eventType: CheckinEventType) {
-    await recordCheckin({ registrationId, busId, stopId, direction, eventType, recordedBy });
-  }
-
-  function isChecked(registrationId: string, eventType: CheckinEventType) {
-    return checkinsAtStop.some(
-      (c) => c.registrationId === registrationId && c.eventType === eventType,
-    );
+    await recordCheckin({ registrationId, busId, stopId, direction: DIRECTION, eventType, recordedBy });
+    if (navigator.onLine) syncPendingCheckins();
   }
 
   return (
     <div className="space-y-4 pb-24">
-      <div className="rounded-lg border border-neutral-200 bg-white p-3">
-        <div className="flex items-center justify-between text-sm">
-          <span className="font-semibold">Micro {busNumber}</span>
-          <span className={pendingCount > 0 ? "text-amber-700" : "text-green-700"}>
-            {pendingCount > 0
-              ? `${pendingCount} registros esperando conexión`
-              : "Todo sincronizado"}
-          </span>
+      <div className="rounded-lg border border-neutral-200 bg-white p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-semibold">Modo sin conexión · Micro {busNumber}</span>
+          <Link href={`/capitan/${eventId}/asistencia`} className="text-xs text-brand-ink underline">
+            Volver a la planilla
+          </Link>
         </div>
-        <Link href={`/capitan/${eventId}/asistencia`} className="mt-2 block text-xs text-neutral-500 underline">
-          Ver planilla de asistencia (con señal)
-        </Link>
-        <div className="mt-2 flex items-center justify-between text-xs text-neutral-500">
-          <span>
-            Listado sincronizado:{" "}
-            {lastRosterSync
-              ? new Date(lastRosterSync).toLocaleTimeString("es-AR", {
-                  timeZone: "America/Argentina/Buenos_Aires",
-                })
-              : "—"}
-          </span>
-          <div className="flex gap-2">
-            <button
-              onClick={handleSyncRoster}
-              disabled={syncingRoster}
-              className="rounded-md border border-neutral-300 px-2 py-1"
-            >
-              {syncingRoster ? "Sincronizando..." : "Sincronizar listado"}
-            </button>
+        <p className="text-xs text-neutral-500">
+          Las marcas se guardan en este celular y se envían solas cuando hay señal.
+        </p>
+
+        {pendingCount > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <span>
+              {pendingCount} marca{pendingCount === 1 ? "" : "s"} guardada{pendingCount === 1 ? "" : "s"} en
+              el celular, todavía sin enviar.
+            </span>
             <button
               onClick={() => syncPendingCheckins()}
-              className="rounded-md border border-neutral-300 px-2 py-1"
+              className="rounded-md border border-amber-300 bg-white px-2 py-1 text-xs font-medium"
             >
-              Reintentar envío
+              Enviar ahora
             </button>
           </div>
-        </div>
-      </div>
+        ) : (
+          <div className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
+            ✓ Todas las marcas están enviadas.
+          </div>
+        )}
 
-      <div className="flex gap-2 text-sm">
-        <button
-          onClick={() => setDirection("outbound")}
-          className={`flex-1 rounded-md px-3 py-2 ${direction === "outbound" ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
-        >
-          Ida
-        </button>
-        <button
-          onClick={() => {
-            setDirection("return");
-            if (lastStop) setStopId(lastStop.id);
-          }}
-          className={`flex-1 rounded-md px-3 py-2 ${direction === "return" ? "bg-brand-ink text-white" : "border border-neutral-300"}`}
-        >
-          Vuelta
-        </button>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
+          <span>Listado guardado: {savedAt ? formatSavedAt(savedAt) : "—"}</span>
+          <button
+            onClick={handleUpdateRoster}
+            disabled={updatingRoster || !online}
+            className="rounded-md border border-neutral-300 px-2 py-1 disabled:opacity-50"
+          >
+            {updatingRoster ? "Actualizando..." : online ? "Actualizar listado" : "Actualizar listado (necesita señal)"}
+          </button>
+        </div>
+        {updateError && <p className="text-xs text-red-600">{updateError}</p>}
       </div>
 
       <div>
         <label className="text-sm font-medium">Parada actual</label>
         <select
           value={stopId}
-          onChange={(e) => setStopId(e.target.value)}
+          onChange={(e) => {
+            setStopId(e.target.value);
+            setFilter("all");
+          }}
           className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
         >
-          {availableStops.map((s) => (
+          {stops.map((s) => (
             <option key={s.id} value={s.id}>
               {s.sequence_order}. {s.name}
             </option>
@@ -191,31 +243,70 @@ export function CaptainApp({
         </select>
       </div>
 
+      <div className="flex flex-wrap gap-2 text-sm">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar por nombre, apellido o nro"
+          className="min-w-0 flex-1 rounded-md border border-neutral-300 px-3 py-1.5"
+        />
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value as typeof filter)}
+          className="rounded-md border border-neutral-300 px-3 py-1.5"
+        >
+          <option value="all">Todos</option>
+          <option value="no-arrival">{isPresentationStop ? "No se presentaron" : "No llegaron"}</option>
+          {!hideDeparture && <option value="no-departure">No salieron</option>}
+        </select>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as typeof sort)}
+          className="rounded-md border border-neutral-300 px-3 py-1.5"
+        >
+          <option value="code">Ordenar por nro</option>
+          <option value="name">Ordenar por apellido</option>
+        </select>
+        <span className="flex items-center rounded-md bg-amber-50 px-3 py-1.5 text-amber-800">
+          {notArrivedCount} {isPresentationStop ? "sin presentar" : "sin llegada"}
+        </span>
+        {!hideDeparture && (
+          <span className="flex items-center rounded-md bg-amber-50 px-3 py-1.5 text-amber-800">
+            {notDepartedCount} sin salida
+          </span>
+        )}
+      </div>
+
       <ul className="space-y-2">
-        {roster.map((r) => {
+        {filtered.map((r) => {
           const arrived = isChecked(r.registration_id, "arrival");
           const departed = isChecked(r.registration_id, "departure");
           return (
             <li key={r.registration_id} className="rounded-lg border border-neutral-200 bg-white p-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <button
                   onClick={() =>
                     setExpandedId(expandedId === r.registration_id ? null : r.registration_id)
                   }
                   className="text-left text-sm font-medium"
                 >
+                  <span className="mr-1 font-mono text-neutral-500">{r.pilgrim_code ?? "—"}</span>
                   {r.last_name}, {r.first_name}
                   {hasAnyMedicalFlag(r) && <span className="ml-1 text-amber-600">⚠</span>}
                 </button>
-                <div className="flex gap-2">
-                  {!hideArrival && (
-                    <button
-                      onClick={() => handleCheckin(r.registration_id, "arrival")}
-                      className={`rounded-md px-3 py-1.5 text-xs font-semibold ${arrived ? "bg-green-700 text-white" : "border border-neutral-300"}`}
-                    >
-                      {arrived ? "✓ Llegó" : "Llegada"}
-                    </button>
-                  )}
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    onClick={() => handleCheckin(r.registration_id, "arrival")}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold ${arrived ? "bg-green-700 text-white" : "border border-neutral-300"}`}
+                  >
+                    {isPresentationStop
+                      ? arrived
+                        ? "✓ Presente"
+                        : "Presente"
+                      : arrived
+                        ? "✓ Llegó"
+                        : "Llegada"}
+                  </button>
                   {!hideDeparture && (
                     <button
                       onClick={() => handleCheckin(r.registration_id, "departure")}
@@ -250,8 +341,13 @@ export function CaptainApp({
         })}
         {roster.length === 0 && (
           <li className="rounded-lg border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-500">
-            Sin listado sincronizado todavía. Tocá &quot;Sincronizar listado&quot; con señal
-            antes de salir.
+            Todavía no hay listado guardado en este celular. Abrí la planilla con señal antes de
+            salir y se guarda solo.
+          </li>
+        )}
+        {roster.length > 0 && filtered.length === 0 && (
+          <li className="rounded-lg border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-500">
+            Nadie coincide con la búsqueda o el filtro.
           </li>
         )}
       </ul>
