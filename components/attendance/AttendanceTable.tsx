@@ -111,14 +111,15 @@ export function AttendanceTable({
     [supportVehicleCheckins],
   );
 
-  // "Se retiró": solo se marca en la ida, fuera de la parada de presentación
-  // (ahí el equivalente es "No se presentó").
-  const canWithdraw = direction === "outbound" && !isPresentationStop;
+  // "Se retiró": solo se marca en la ida, en paradas intermedias. Ni en la
+  // de presentación (ahí el equivalente es "No se presentó") ni en Luján
+  // (ahí termina la caminata, no hay de qué retirarse).
+  const canWithdraw = direction === "outbound" && !isPresentationStop && !isFinalStop;
   // Columnas de marcas (todo lo que va después de "Celular"): la fila de
   // alguien que se retiró las ocupa con una sola celda.
   const actionColumnCount = isPresentationStop
     ? 1
-    : 1 + (hideSupportVehicle ? 0 : 1) + (showBasilica ? 1 : 0);
+    : 1 + (hideSupportVehicle ? 0 : 1) + (canWithdraw ? 1 : 0) + (showBasilica ? 1 : 0);
   const withdrawalByRegistration = useMemo(
     () => new Map(withdrawals.map((w) => [w.registrationId, w])),
     [withdrawals],
@@ -252,8 +253,8 @@ export function AttendanceTable({
     mark(r.registrationId, r.busId, "withdrawn");
   }
 
-  // Va en la última columna de marcas ("Sigue en Micro" en paradas
-  // intermedias, "Basílica" en Luján), al lado del botón de esa columna.
+  // Columna propia "Retiro", al lado de "Sigue en Micro" (en la misma celda
+  // hacía la fila demasiado alta).
   function withdrawButton(r: AttendanceRosterEntry) {
     if (!canWithdraw) return null;
     return (
@@ -367,6 +368,7 @@ export function AttendanceTable({
                     {hideArrival ? "Salida" : hideDeparture ? "Llegada" : "Llegada / Salida"}
                   </th>
                   {!hideSupportVehicle && <th className="px-3 py-2">Sigue en Micro</th>}
+                  {canWithdraw && <th className="px-3 py-2">Retiro</th>}
                   {showBasilica && <th className="px-3 py-2">Basílica</th>}
                 </>
               )}
@@ -544,8 +546,7 @@ export function AttendanceTable({
                         )}
                       </td>
                       {!hideSupportVehicle && (
-                        <td className="px-3 py-2">
-                          <div className="flex flex-wrap items-center gap-2">
+                        <td className="whitespace-nowrap px-3 py-2">
                           {supportCheckin ? (
                             <button
                               disabled={pending && pendingKey === `${r.registrationId}-support_vehicle-undo`}
@@ -564,13 +565,11 @@ export function AttendanceTable({
                               Sigue en Micro
                             </button>
                           )}
-                          {withdrawButton(r)}
-                          </div>
                         </td>
                       )}
+                      {canWithdraw && <td className="whitespace-nowrap px-3 py-2">{withdrawButton(r)}</td>}
                       {showBasilica && (
                         <td className="px-3 py-2">
-                          <div className="flex flex-wrap items-center gap-2">
                           {basilica ? (
                             <button
                               disabled={pending && pendingKey === `${r.registrationId}-basilica-undo`}
@@ -589,8 +588,6 @@ export function AttendanceTable({
                               Fue a la Basílica
                             </button>
                           )}
-                          {withdrawButton(r)}
-                          </div>
                         </td>
                       )}
                     </>
@@ -603,7 +600,7 @@ export function AttendanceTable({
                 <td
                   colSpan={
                     (showBusColumn ? 1 : 0) +
-                    (isPresentationStop ? 4 : 4 + (hideSupportVehicle ? 0 : 1) + (showBasilica ? 1 : 0))
+                    3 + actionColumnCount
                   }
                   className="px-3 py-6 text-center text-neutral-500"
                 >
