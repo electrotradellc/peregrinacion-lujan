@@ -23,6 +23,13 @@ export interface AttendanceCheckinEntry {
   recordedAt: string;
 }
 
+// Marca "Se retiró" con la parada donde se hizo (para saber, en cualquier
+// otra parada, si la persona ya no sigue).
+export interface AttendanceWithdrawal extends AttendanceCheckinEntry {
+  stopName: string;
+  stopSequence: number;
+}
+
 // Con señal débil una marca puede quedar colgada sin terminar nunca: a los
 // 10s se da por fallida (si igual llega al server después, no duplica nada:
 // la marca es idempotente por persona/parada/tipo).
@@ -57,6 +64,8 @@ export function AttendanceTable({
   supportVehicleCheckins,
   isPresentationStop = false,
   isFinalStop = false,
+  withdrawals = [],
+  currentStopSequence = 0,
 }: {
   eventId: string;
   direction: AssignmentDirection;
@@ -66,6 +75,8 @@ export function AttendanceTable({
   supportVehicleCheckins: AttendanceCheckinEntry[];
   isPresentationStop?: boolean;
   isFinalStop?: boolean;
+  withdrawals?: AttendanceWithdrawal[];
+  currentStopSequence?: number;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -100,18 +111,50 @@ export function AttendanceTable({
     [supportVehicleCheckins],
   );
 
+  // "Se retiró": solo se marca en la ida, fuera de la parada de presentación
+  // (ahí el equivalente es "No se presentó").
+  const canWithdraw = direction === "outbound" && !isPresentationStop;
+  // Columnas de marcas (todo lo que va después de "Celular"): la fila de
+  // alguien que se retiró las ocupa con una sola celda.
+  const actionColumnCount = isPresentationStop
+    ? 1
+    : 1 + (hideSupportVehicle ? 0 : 1) + (showBasilica ? 1 : 0);
+  const withdrawalByRegistration = useMemo(
+    () => new Map(withdrawals.map((w) => [w.registrationId, w])),
+    [withdrawals],
+  );
+  // Retirado en esta parada o antes: ya no se lo espera acá ni después. En la
+  // Vuelta cualquier retiro cuenta (se fue antes de subir al micro de vuelta).
+  const withdrawnAtOrBefore = (registrationId: string) => {
+    const w = withdrawalByRegistration.get(registrationId);
+    if (!w) return undefined;
+    if (direction === "return") return w;
+    return w.stopSequence <= currentStopSequence ? w : undefined;
+  };
+
   // En la parada de presentación, "llegó" = "se presentó". En el resto de
   // las paradas, el mismo conteo sirve para "sin llegada" y agregamos el
-  // equivalente de "sin salida".
+  // equivalente de "sin salida". Quien se retiró no cuenta en ninguno.
   const notArrivedCount = useMemo(
-    () => roster.filter((r) => !findCheckin(r.registrationId, "arrival")).length,
+    () =>
+      roster.filter(
+        (r) => !withdrawnAtOrBefore(r.registrationId) && !findCheckin(r.registrationId, "arrival"),
+      ).length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [roster, checkinsAtStop],
+    [roster, checkinsAtStop, withdrawals],
   );
   const notDepartedCount = useMemo(
-    () => roster.filter((r) => !findCheckin(r.registrationId, "departure")).length,
+    () =>
+      roster.filter(
+        (r) => !withdrawnAtOrBefore(r.registrationId) && !findCheckin(r.registrationId, "departure"),
+      ).length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [roster, checkinsAtStop],
+    [roster, checkinsAtStop, withdrawals],
+  );
+  const withdrawnCount = useMemo(
+    () => roster.filter((r) => withdrawnAtOrBefore(r.registrationId)).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [roster, withdrawals],
   );
   const basilicaCount = useMemo(
     () => roster.filter((r) => findCheckin(r.registrationId, "basilica")).length,
@@ -131,10 +174,14 @@ export function AttendanceTable({
       );
     }
     if (!hideArrival && filter === "no-arrival") {
-      rows = rows.filter((r) => !findCheckin(r.registrationId, "arrival"));
+      rows = rows.filter(
+        (r) => !withdrawnAtOrBefore(r.registrationId) && !findCheckin(r.registrationId, "arrival"),
+      );
     }
     if (!isPresentationStop && !hideDeparture && filter === "no-departure") {
-      rows = rows.filter((r) => !findCheckin(r.registrationId, "departure"));
+      rows = rows.filter(
+        (r) => !withdrawnAtOrBefore(r.registrationId) && !findCheckin(r.registrationId, "departure"),
+      );
     }
     // El filtro de "no se presentaron" siempre se ordena por micro, sin
     // depender de qué tenga elegido el selector de orden.
@@ -152,7 +199,7 @@ export function AttendanceTable({
       return a.lastName.localeCompare(b.lastName, "es") || a.firstName.localeCompare(b.firstName, "es");
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roster, checkinsAtStop, q, filter, sort, isPresentationStop, hideArrival, hideDeparture]);
+  }, [roster, checkinsAtStop, q, filter, sort, isPresentationStop, hideArrival, hideDeparture, withdrawals]);
 
   function mark(registrationId: string, busId: string, eventType: CheckinEventType) {
     const key = `${registrationId}-${eventType}`;
@@ -192,6 +239,17 @@ export function AttendanceTable({
         setPendingKey(null);
       }
     });
+  }
+
+  function withdraw(r: AttendanceRosterEntry) {
+    if (
+      !window.confirm(
+        `¿Marcar que ${r.firstName} ${r.lastName} se retira de la peregrinación en esta parada? Deja de contarse en las paradas siguientes y en la Vuelta. Se puede deshacer.`,
+      )
+    ) {
+      return;
+    }
+    mark(r.registrationId, r.busId, "withdrawn");
   }
 
   function noShow(registrationId: string) {
@@ -270,6 +328,11 @@ export function AttendanceTable({
             )}
           </>
         )}
+        {withdrawnCount > 0 && (
+          <span className="flex items-center rounded-md bg-neutral-100 px-3 py-1.5 text-neutral-600">
+            {withdrawnCount} se retiraron
+          </span>
+        )}
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
@@ -300,12 +363,30 @@ export function AttendanceTable({
               const basilica = showBasilica ? findCheckin(r.registrationId, "basilica") : undefined;
               const supportCheckin = supportByRegistration.get(r.registrationId);
               const inSupportVehicle = Boolean(supportCheckin);
+              const withdrawal = withdrawnAtOrBefore(r.registrationId);
+              const withdrewHere =
+                withdrawal && direction === "outbound" && withdrawal.stopSequence === currentStopSequence;
               return (
-                <tr key={r.registrationId} className={inSupportVehicle ? "bg-amber-50" : undefined}>
+                <tr
+                  key={r.registrationId}
+                  className={
+                    withdrawal ? "bg-neutral-50 text-neutral-400" : inSupportVehicle ? "bg-amber-50" : undefined
+                  }
+                >
                   {showBusColumn && <td className="px-3 py-2 text-neutral-700">{r.busNumber}</td>}
                   <td className="px-3 py-2 font-mono text-neutral-700">{r.pilgrimCode ?? "—"}</td>
                   <td className="px-3 py-2">
                     {r.lastName}, {r.firstName}
+                    {canWithdraw && !withdrawal && (
+                      <button
+                        type="button"
+                        disabled={pending && pendingKey === `${r.registrationId}-withdrawn`}
+                        onClick={() => withdraw(r)}
+                        className="ml-2 text-[11px] text-neutral-400 underline hover:text-red-700 disabled:opacity-50"
+                      >
+                        Se retiró
+                      </button>
+                    )}
                     {inSupportVehicle && (
                       <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
                         🚐 en micro de apoyo
@@ -322,7 +403,24 @@ export function AttendanceTable({
                       {r.phone}
                     </a>
                   </td>
-                  {isPresentationStop ? (
+                  {withdrawal ? (
+                    <td className="px-3 py-2" colSpan={actionColumnCount}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {withdrewHere && arrival && (
+                          <span className="text-xs text-green-700">Llegó {formatTime(arrival.recordedAt)}</span>
+                        )}
+                        <button
+                          disabled={pending && pendingKey === `${r.registrationId}-withdrawn-undo`}
+                          onClick={() => undo(withdrawal)}
+                          title="Tocar para deshacer"
+                          className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs text-neutral-700 hover:bg-red-100 hover:text-red-800 disabled:opacity-50"
+                        >
+                          Se retiró {withdrewHere ? "acá" : `en ${withdrawal.stopName}`} —{" "}
+                          {formatTime(withdrawal.recordedAt)} ✕
+                        </button>
+                      </div>
+                    </td>
+                  ) : isPresentationStop ? (
                     <td className="px-3 py-2">
                       {arrival ? (
                         <button

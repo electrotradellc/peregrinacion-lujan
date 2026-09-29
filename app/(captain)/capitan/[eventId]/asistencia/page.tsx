@@ -74,6 +74,17 @@ export default async function CaptainAsistenciaPage({
   const allCheckins = allCheckinsRaw ?? [];
   const checkinsAtStop = allCheckins.filter((c) => c.stop_id === stopId);
   const supportCheckins = allCheckins.filter((c) => c.event_type === "support_vehicle");
+  const stopById = new Map((allStops ?? []).map((s) => [s.id, s]));
+  const withdrawals = allCheckins
+    .filter((c) => c.event_type === "withdrawn")
+    .map((c) => ({
+      id: c.id,
+      registrationId: c.registration_id,
+      eventType: c.event_type,
+      recordedAt: c.recorded_at,
+      stopName: stopById.get(c.stop_id)?.name ?? "otra parada",
+      stopSequence: stopById.get(c.stop_id)?.sequence_order ?? 0,
+    }));
   const roster = fullRoster.map((r) => ({
     registrationId: r.registration_id,
     busId,
@@ -131,6 +142,8 @@ export default async function CaptainAsistenciaPage({
         }))}
         isPresentationStop={stops.find((s) => s.id === stopId)?.is_presentation_stop ?? false}
         isFinalStop={stopId === lastStop.id}
+        withdrawals={withdrawals}
+        currentStopSequence={stopById.get(stopId)?.sequence_order ?? 0}
       />
     </div>
   );

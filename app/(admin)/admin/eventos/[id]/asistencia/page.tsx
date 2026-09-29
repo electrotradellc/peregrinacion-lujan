@@ -41,6 +41,24 @@ export default async function AsistenciaPage({
         ? sp.stopId
         : stops[0].id;
 
+  // Los retiros se buscan en todos los micros del evento, no solo en el
+  // elegido: en la Vuelta la persona puede tener otro micro que en la ida
+  // (donde quedó registrado el retiro).
+  const { data: withdrawnRaw } = await supabase
+    .from("attendance_checkins")
+    .select("id, registration_id, stop_id, recorded_at")
+    .in("bus_id", busIds)
+    .eq("event_type", "withdrawn");
+  const stopById = new Map(stops.map((s) => [s.id, s]));
+  const withdrawals = (withdrawnRaw ?? []).map((c) => ({
+    id: c.id,
+    registrationId: c.registration_id,
+    eventType: "withdrawn" as const,
+    recordedAt: c.recorded_at,
+    stopName: stopById.get(c.stop_id)?.name ?? "otra parada",
+    stopSequence: stopById.get(c.stop_id)?.sequence_order ?? 0,
+  }));
+
   const [{ data: assignments }, { data: checkinsAtStop }, { data: supportCheckins }] = await Promise.all([
     (allBuses
       ? supabase.from("bus_assignments").select("*, registrations!inner(*)").in("bus_id", busIds)
@@ -106,6 +124,8 @@ export default async function AsistenciaPage({
         }))}
         isPresentationStop={stops.find((s) => s.id === stopId)?.is_presentation_stop ?? false}
         isFinalStop={stopId === lastStop.id}
+        withdrawals={withdrawals}
+        currentStopSequence={stopById.get(stopId)?.sequence_order ?? 0}
       />
     </div>
   );

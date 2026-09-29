@@ -134,9 +134,29 @@ export function CaptainApp({
   const isChecked = (registrationId: string, eventType: CheckinEventType) =>
     checkinsAtStop.some((c) => c.registrationId === registrationId && c.eventType === eventType);
 
-  const notArrivedCount = roster.filter((r) => !isChecked(r.registration_id, "arrival")).length;
-  const notDepartedCount = roster.filter((r) => !isChecked(r.registration_id, "departure")).length;
+  // "Se retiró" se marca desde la planilla con señal; acá solo se muestra
+  // (la planilla deja copiadas esas marcas en el celular) para que quien se
+  // fue no aparezca como "no llegó" en las paradas siguientes.
+  const withdrawals =
+    useLiveQuery(
+      () => db.checkins.where({ busId }).filter((c) => c.eventType === "withdrawn").toArray(),
+      [busId],
+    ) ?? [];
+  const currentSequence = currentStop?.sequence_order ?? 0;
+  const withdrawnAtOrBefore = (registrationId: string) => {
+    const w = withdrawals.find((c) => c.registrationId === registrationId);
+    if (!w) return undefined;
+    const stop = stops.find((s) => s.id === w.stopId);
+    // Parada que este referente no ve: se toma como anterior (ya se fue).
+    const sequence = stop?.sequence_order ?? -1;
+    return sequence <= currentSequence ? { stopName: stop?.name ?? "otra parada", withdrewHere: sequence === currentSequence } : undefined;
+  };
+
+  const activeRoster = roster.filter((r) => !withdrawnAtOrBefore(r.registration_id));
+  const notArrivedCount = activeRoster.filter((r) => !isChecked(r.registration_id, "arrival")).length;
+  const notDepartedCount = activeRoster.filter((r) => !isChecked(r.registration_id, "departure")).length;
   const basilicaCount = roster.filter((r) => isChecked(r.registration_id, "basilica")).length;
+  const withdrawnCount = roster.length - activeRoster.length;
 
   const filtered = useMemo(() => {
     let rows = roster;
@@ -150,10 +170,14 @@ export function CaptainApp({
       );
     }
     if (filter === "no-arrival") {
-      rows = rows.filter((r) => !isChecked(r.registration_id, "arrival"));
+      rows = rows.filter(
+        (r) => !withdrawnAtOrBefore(r.registration_id) && !isChecked(r.registration_id, "arrival"),
+      );
     }
     if (filter === "no-departure" && !hideDeparture) {
-      rows = rows.filter((r) => !isChecked(r.registration_id, "departure"));
+      rows = rows.filter(
+        (r) => !withdrawnAtOrBefore(r.registration_id) && !isChecked(r.registration_id, "departure"),
+      );
     }
     return [...rows].sort((a, b) => {
       if (sort === "code") {
@@ -165,7 +189,7 @@ export function CaptainApp({
       return a.last_name.localeCompare(b.last_name, "es") || a.first_name.localeCompare(b.first_name, "es");
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roster, checkinsAtStop, q, filter, sort, hideDeparture]);
+  }, [roster, checkinsAtStop, q, filter, sort, hideDeparture, withdrawals]);
 
   // Se mandan las marcas pendientes antes de volver, así la planilla (que
   // lee del server) ya las muestra al abrir. No se cambia de pantalla sola:
@@ -278,6 +302,11 @@ export function CaptainApp({
             {basilicaCount} fueron a la Basílica
           </span>
         )}
+        {withdrawnCount > 0 && (
+          <span className="flex items-center rounded-md bg-neutral-100 px-3 py-1.5 text-neutral-600">
+            {withdrawnCount} se retiraron
+          </span>
+        )}
       </div>
 
       <ul className="space-y-2">
@@ -285,8 +314,12 @@ export function CaptainApp({
           const arrived = isChecked(r.registration_id, "arrival");
           const departed = isChecked(r.registration_id, "departure");
           const wentToBasilica = isChecked(r.registration_id, "basilica");
+          const withdrawal = withdrawnAtOrBefore(r.registration_id);
           return (
-            <li key={r.registration_id} className="rounded-lg border border-neutral-200 bg-white p-3">
+            <li
+              key={r.registration_id}
+              className={`rounded-lg border border-neutral-200 p-3 ${withdrawal ? "bg-neutral-50 text-neutral-400" : "bg-white"}`}
+            >
               <div className="flex items-center justify-between gap-2">
                 <button
                   onClick={() =>
@@ -298,6 +331,11 @@ export function CaptainApp({
                   {r.last_name}, {r.first_name}
                   {hasAnyMedicalFlag(r) && <span className="ml-1 text-amber-600">⚠</span>}
                 </button>
+                {withdrawal ? (
+                  <span className="shrink-0 rounded-full bg-neutral-200 px-2 py-0.5 text-xs text-neutral-700">
+                    Se retiró {withdrawal.withdrewHere ? "acá" : `en ${withdrawal.stopName}`}
+                  </span>
+                ) : (
                 <div className="flex shrink-0 gap-2">
                   <button
                     onClick={() => handleCheckin(r.registration_id, "arrival")}
@@ -328,6 +366,7 @@ export function CaptainApp({
                     </button>
                   )}
                 </div>
+                )}
               </div>
               {expandedId === r.registration_id && (
                 <div className="mt-2 space-y-1 rounded-md bg-neutral-50 p-2 text-xs text-neutral-700">
