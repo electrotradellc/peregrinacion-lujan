@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCapacityByStartingPoint } from "@/lib/capacity";
@@ -30,10 +31,14 @@ function formatDateTime(iso: string) {
 
 export default async function ListaEsperaPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ estado?: string }>;
 }) {
   const { id } = await params;
+  const { estado } = await searchParams;
+  const statusFilter = estado && estado in waitlistStatusLabel ? estado : "";
   const supabase = await createClient();
 
   const [{ data: event }, { data: startingPoints }, { data: entriesRaw }] = await Promise.all([
@@ -51,6 +56,14 @@ export default async function ListaEsperaPage({
 
   const capacityByStartingPoint = await getCapacityByStartingPoint(supabase, id);
   const entries = entriesRaw ?? [];
+  const filterPills = [
+    { value: "", label: "Todos", count: entries.length },
+    ...Object.entries(waitlistStatusLabel).map(([value, label]) => ({
+      value,
+      label,
+      count: entries.filter((e) => e.status === value).length,
+    })),
+  ];
 
   return (
     <div className="space-y-8">
@@ -62,9 +75,29 @@ export default async function ListaEsperaPage({
         email con un link a la inscripción, ya con sus datos precargados.
       </p>
 
+      <div className="flex flex-wrap gap-2 text-sm">
+        {filterPills.map((pill) => {
+          const active = pill.value === statusFilter;
+          return (
+            <Link
+              key={pill.value || "all"}
+              href={pill.value ? `?estado=${pill.value}` : "?"}
+              className={`rounded-full px-3 py-1 font-medium ${
+                active
+                  ? "bg-brand-ink text-white"
+                  : `${pill.value ? waitlistStatusClass[pill.value] : "bg-neutral-100 text-neutral-700"} hover:opacity-80`
+              }`}
+            >
+              {pill.label}: {pill.count}
+            </Link>
+          );
+        })}
+      </div>
+
       {(startingPoints ?? []).map((sp) => {
         const spEntries = entries.filter((e) => e.starting_point_id === sp.id);
         const waiting = spEntries.filter((e) => e.status === "waiting");
+        const visibleEntries = statusFilter ? spEntries.filter((e) => e.status === statusFilter) : spEntries;
         const capacity = capacityByStartingPoint[sp.id];
         const remaining = capacity?.remaining ?? null;
 
@@ -121,11 +154,15 @@ export default async function ListaEsperaPage({
               </form>
             )}
 
-            {spEntries.length === 0 ? (
-              <p className="text-sm text-neutral-500">Nadie anotado en este punto de partida.</p>
+            {visibleEntries.length === 0 ? (
+              <p className="text-sm text-neutral-500">
+                {statusFilter
+                  ? `Nadie en estado "${waitlistStatusLabel[statusFilter]}" en este punto de partida.`
+                  : "Nadie anotado en este punto de partida."}
+              </p>
             ) : (
               <ul className="divide-y divide-neutral-100 text-sm">
-                {spEntries.map((entry) => (
+                {visibleEntries.map((entry) => (
                   <li key={entry.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                     <div>
                       <span className="font-medium">
