@@ -14,6 +14,26 @@ import { statusLabel, statusClass } from "@/lib/registrationStatus";
 
 type Sort = "recent" | "name" | "code";
 
+// Condiciones médicas del formulario de inscripción, con el detalle que
+// cargó la persona (si esa condición lo pide) para mostrarlo al filtrar.
+const MEDICAL_CONDITIONS: {
+  value: string;
+  label: string;
+  has: (r: RegistrationRow) => boolean;
+  detail?: (r: RegistrationRow) => string | null;
+}[] = [
+  { value: "allergies", label: "Alergias", has: (r) => r.has_allergies, detail: (r) => r.allergies_detail },
+  { value: "celiac", label: "Celiaquía", has: (r) => r.has_celiac },
+  { value: "diabetes", label: "Diabetes", has: (r) => r.has_diabetes },
+  { value: "hypertension", label: "Hipertensión", has: (r) => r.has_hypertension },
+  { value: "respiratory", label: "Enf. respiratoria", has: (r) => r.has_respiratory_condition },
+  { value: "heart", label: "Enf. cardíaca", has: (r) => r.has_heart_condition },
+  { value: "medication", label: "Toma medicación", has: (r) => r.takes_medication, detail: (r) => r.medication_detail },
+  { value: "other", label: "Otra condición", has: (r) => r.has_other_condition, detail: (r) => r.other_condition_detail },
+];
+
+const hasAnyCondition = (r: RegistrationRow) => MEDICAL_CONDITIONS.some((c) => c.has(r));
+
 function SortButton({
   active,
   onClick,
@@ -56,7 +76,15 @@ export function InscripcionesTable({
   const [busVuelta, setBusVuelta] = useState("");
   const [onlyMinors, setOnlyMinors] = useState(false);
   const [onlyIndependentJoiners, setOnlyIndependentJoiners] = useState(false);
+  const [onlyIndependentReturners, setOnlyIndependentReturners] = useState(false);
+  const [medical, setMedical] = useState("");
   const [sort, setSort] = useState<Sort>("recent");
+
+  const medicalCondition = MEDICAL_CONDITIONS.find((c) => c.value === medical);
+  // Los conteos del desplegable no incluyen canceladas: no van a la
+  // peregrinación, y sumarlas confunde para planificar (ej. comida sin TACC).
+  const activeRegistrations = registrations.filter((r) => r.status !== "cancelled");
+  const medicalCount = (has: (r: RegistrationRow) => boolean) => activeRegistrations.filter(has).length;
 
   const spName = (spId: string) => startingPoints.find((sp) => sp.id === spId)?.name ?? "?";
   const assignedBus = (registrationId: string, direction: "outbound" | "return") =>
@@ -97,6 +125,16 @@ export function InscripcionesTable({
     if (onlyIndependentJoiners) {
       rows = rows.filter((r) => r.joins_independently);
     }
+    if (onlyIndependentReturners) {
+      rows = rows.filter((r) => r.returns_independently);
+    }
+    // Sin canceladas, igual que los números del desplegable: el filtro es para
+    // planificar (ej. cuántos celíacos van), y así lista y número coinciden.
+    if (medical === "any") {
+      rows = rows.filter((r) => r.status !== "cancelled" && hasAnyCondition(r));
+    } else if (medicalCondition) {
+      rows = rows.filter((r) => r.status !== "cancelled" && medicalCondition.has(r));
+    }
 
     return [...rows].sort((a, b) => {
       if (sort === "name") {
@@ -113,7 +151,19 @@ export function InscripcionesTable({
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [registrations, q, status, startingPointId, busIda, busVuelta, onlyMinors, onlyIndependentJoiners, sort]);
+  }, [
+    registrations,
+    q,
+    status,
+    startingPointId,
+    busIda,
+    busVuelta,
+    onlyMinors,
+    onlyIndependentJoiners,
+    onlyIndependentReturners,
+    medical,
+    sort,
+  ]);
 
   return (
     <>
@@ -186,7 +236,33 @@ export function InscripcionesTable({
           />
           Solo se unen por su cuenta
         </label>
+        <label className="flex items-center gap-2 rounded-md border border-neutral-300 px-3 py-1.5">
+          <input
+            type="checkbox"
+            checked={onlyIndependentReturners}
+            onChange={(e) => setOnlyIndependentReturners(e.target.checked)}
+          />
+          Solo vuelven por su cuenta
+        </label>
+        <select
+          value={medical}
+          onChange={(e) => setMedical(e.target.value)}
+          className="rounded-md border border-neutral-300 px-3 py-1.5"
+        >
+          <option value="">Condición médica: todas</option>
+          <option value="any">Cualquier condición ({medicalCount(hasAnyCondition)})</option>
+          {MEDICAL_CONDITIONS.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label} ({medicalCount(c.has)})
+            </option>
+          ))}
+        </select>
       </div>
+
+      <p className="text-sm text-neutral-600">
+        Mostrando <strong>{filtered.length}</strong> de {registrations.length} inscripciones
+        {medical && " · el filtro de condición médica no incluye inscripciones canceladas"}
+      </p>
 
       <div className="scrollbar-visible max-h-[65vh] overflow-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full text-sm">
@@ -234,6 +310,18 @@ export function InscripcionesTable({
                       <span className="ml-1 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-800">
                         Se une por su cuenta
                       </span>
+                    )}
+                    {medicalCondition?.detail && medicalCondition.detail(r) && (
+                      <div className="text-xs text-neutral-500">
+                        {medicalCondition.label}: {medicalCondition.detail(r)}
+                      </div>
+                    )}
+                    {medical === "any" && (
+                      <div className="text-xs text-neutral-500">
+                        {MEDICAL_CONDITIONS.filter((c) => c.has(r))
+                          .map((c) => (c.detail?.(r) ? `${c.label} (${c.detail(r)})` : c.label))
+                          .join(", ")}
+                      </div>
                     )}
                   </td>
                   <td className="px-4 py-2">{r.dni}</td>
