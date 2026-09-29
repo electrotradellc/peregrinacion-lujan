@@ -23,6 +23,23 @@ export interface AttendanceCheckinEntry {
   recordedAt: string;
 }
 
+// Con señal débil una marca puede quedar colgada sin terminar nunca: a los
+// 10s se da por fallida (si igual llega al server después, no duplica nada:
+// la marca es idempotente por persona/parada/tipo).
+const SAVE_TIMEOUT_MS = 10000;
+function withTimeout<T>(promise: Promise<T>): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), SAVE_TIMEOUT_MS)),
+  ]);
+}
+
+// La planilla del referente escucha estos eventos (OfflineModeBanner) para
+// ofrecer el modo sin conexión cuando las marcas no se están guardando.
+export const ATTENDANCE_SAVE_FAILED_EVENT = "attendance-save-failed";
+export const ATTENDANCE_SAVE_OK_EVENT = "attendance-save-ok";
+const SAVE_ERROR_MESSAGE = "No se pudo guardar. Revisá la señal y probá de nuevo.";
+
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("es-AR", {
     hour: "2-digit",
@@ -56,6 +73,12 @@ export function AttendanceTable({
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "no-arrival" | "no-departure">("all");
   const [sort, setSort] = useState<"code" | "name" | "bus">("code");
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const reportSave = (ok: boolean) => {
+    setSaveError(ok ? null : SAVE_ERROR_MESSAGE);
+    window.dispatchEvent(new Event(ok ? ATTENDANCE_SAVE_OK_EVENT : ATTENDANCE_SAVE_FAILED_EVENT));
+  };
 
   const showBusColumn = useMemo(() => new Set(roster.map((r) => r.busId)).size > 1, [roster]);
 
@@ -128,7 +151,10 @@ export function AttendanceTable({
     setPendingKey(key);
     startTransition(async () => {
       try {
-        await recordAttendanceAction({ eventId, busId, direction, stopId, registrationId, eventType });
+        await withTimeout(recordAttendanceAction({ eventId, busId, direction, stopId, registrationId, eventType }));
+        reportSave(true);
+      } catch {
+        reportSave(false);
       } finally {
         setPendingKey(null);
       }
@@ -143,12 +169,17 @@ export function AttendanceTable({
     setPendingKey(key);
     startTransition(async () => {
       try {
-        await undoAttendanceAction({
-          eventId,
-          checkinId: checkin.id,
-          registrationId: checkin.registrationId,
-          eventType: checkin.eventType,
-        });
+        await withTimeout(
+          undoAttendanceAction({
+            eventId,
+            checkinId: checkin.id,
+            registrationId: checkin.registrationId,
+            eventType: checkin.eventType,
+          }),
+        );
+        reportSave(true);
+      } catch {
+        reportSave(false);
       } finally {
         setPendingKey(null);
       }
@@ -163,8 +194,11 @@ export function AttendanceTable({
     setPendingKey(key);
     startTransition(async () => {
       try {
-        await markNoShowAction(eventId, registrationId);
+        await withTimeout(markNoShowAction(eventId, registrationId));
+        reportSave(true);
         router.refresh();
+      } catch {
+        reportSave(false);
       } finally {
         setPendingKey(null);
       }
@@ -173,6 +207,11 @@ export function AttendanceTable({
 
   return (
     <div className="space-y-3">
+      {saveError && (
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-800" role="alert">
+          {saveError}
+        </p>
+      )}
       <div className="flex flex-wrap gap-2 text-sm">
         <input
           value={q}

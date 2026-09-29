@@ -55,6 +55,29 @@ export async function syncPendingCheckins(): Promise<SyncResult> {
   return { attempted: pending.length, synced, failed };
 }
 
+// ¿Hay señal de verdad? `navigator.onLine` dice "conectado" apenas se saca
+// el modo avión o aparece una rayita, varios segundos antes de que los datos
+// funcionen. Un POST vacío al endpoint de sync lo confirma contra el server:
+// los POST nunca los responde el service worker desde su cache, y además
+// valida que la sesión siga abierta.
+export async function checkConnection(timeoutMs = 6000): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch("/api/checkins/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ checkins: [] }),
+      signal: controller.signal,
+    });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function countPending(): Promise<number> {
   return db.checkins.where("synced").equals(0).count();
 }

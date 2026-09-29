@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   db,
@@ -12,7 +10,7 @@ import {
   setRosterSavedAt,
   type RosterEntry,
 } from "@/lib/offline/db";
-import { syncPendingCheckins } from "@/lib/offline/syncQueue";
+import { checkConnection, syncPendingCheckins } from "@/lib/offline/syncQueue";
 import { createClient } from "@/lib/supabase/client";
 import type { CaptainRosterRow, CheckinEventType, StopRow } from "@/lib/types";
 
@@ -65,11 +63,14 @@ export function CaptainApp({
   const [updatingRoster, setUpdatingRoster] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
-  // Para avisar "volvió la señal" solo si en algún momento se cortó — si el
-  // referente entró a este modo teniendo señal, no hay nada que avisar.
-  const [wasOffline, setWasOffline] = useState(false);
+  // "Volvió la señal" se avisa solo si en algún momento no hubo señal real
+  // (y recién cuando el server responde de verdad, no apenas el celular
+  // dice "conectado"). Si el referente entró a este modo con buena señal,
+  // no hay nada que avisar.
+  const wasOfflineRef = useRef(false);
+  const [signalBack, setSignalBack] = useState(false);
   const [returning, setReturning] = useState(false);
-  const router = useRouter();
+  const [backError, setBackError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "no-arrival" | "no-departure">("all");
@@ -93,20 +94,33 @@ export function CaptainApp({
   }, []);
 
   useEffect(() => {
+    let signalConfirmed = false;
     const update = () => {
       const isOnline = navigator.onLine;
       setOnline(isOnline);
-      if (!isOnline) setWasOffline(true);
+      if (!isOnline) wasOfflineRef.current = true;
     };
-    update();
+    const probe = async () => {
+      if (signalConfirmed) return;
+      const ok = await checkConnection();
+      if (!ok) {
+        // cubre también la señal débil: el celular dice "conectado" pero
+        // los datos no pasan (ahí nunca dispara el evento "offline")
+        wasOfflineRef.current = true;
+      } else if (wasOfflineRef.current) {
+        signalConfirmed = true;
+        setSignalBack(true);
+      }
+    };
     const run = () => {
       update();
       syncPendingCheckins();
+      probe();
     };
     run();
     window.addEventListener("online", run);
     window.addEventListener("offline", update);
-    const interval = setInterval(run, 30000);
+    const interval = setInterval(run, 15000);
     return () => {
       window.removeEventListener("online", run);
       window.removeEventListener("offline", update);
@@ -191,11 +205,18 @@ export function CaptainApp({
   // marca confundiría más.
   async function handleBackToSheet() {
     setReturning(true);
-    try {
-      await syncPendingCheckins();
-    } finally {
-      router.push(`/capitan/${eventId}/asistencia`);
+    setBackError(null);
+    if (!(await checkConnection())) {
+      setBackError("Todavía no hay buena señal. Seguí en este modo y probá de nuevo en unos segundos.");
+      setReturning(false);
+      return;
     }
+    await syncPendingCheckins();
+    // Carga de página completa a propósito (no router.push): la navegación
+    // del router puede fallar a medias con señal inestable y dejar al
+    // referente en esta misma pantalla sin explicación.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.assign(`/capitan/${eventId}/asistencia`);
   }
 
   async function handleCheckin(registrationId: string, eventType: CheckinEventType) {
@@ -205,7 +226,13 @@ export function CaptainApp({
 
   return (
     <div className="space-y-4 pb-24">
-      {online && wasOffline && (
+      {backError && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          {backError}
+        </div>
+      )}
+
+      {signalBack && (
         <div className="rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-900">
           <p className="font-semibold">Volvió la señal.</p>
           <p className="mt-1">
@@ -226,9 +253,14 @@ export function CaptainApp({
       <div className="rounded-lg border border-neutral-200 bg-white p-3 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <span className="font-semibold">Modo sin conexión · Micro {busNumber}</span>
-          <Link href={`/capitan/${eventId}/asistencia`} className="text-xs text-brand-ink underline">
+          <button
+            type="button"
+            onClick={handleBackToSheet}
+            disabled={returning}
+            className="text-xs text-brand-ink underline disabled:opacity-60"
+          >
             Volver a la planilla
-          </Link>
+          </button>
         </div>
         <p className="text-xs text-neutral-500">
           Las marcas se guardan en este celular y se envían solas cuando hay señal.
