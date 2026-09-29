@@ -16,6 +16,11 @@ const withSerwist = withSerwistInit({
   // La app funciona igual sin service worker en dev; evita el ruido de
   // recompilarlo en cada guardado.
   disable: process.env.NODE_ENV === "development",
+  // Por defecto Serwist recarga la página entera apenas el celular vuelve a
+  // estar "online". En el modo sin conexión del referente eso borraba el
+  // aviso "Volvió la señal" apenas aparecía (y con señal inestable recargaba
+  // una y otra vez). La app ya maneja la vuelta de la señal por su cuenta.
+  reloadOnOnline: false,
 });
 
 export default withSerwist(nextConfig);

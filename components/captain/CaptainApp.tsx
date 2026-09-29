@@ -16,6 +16,7 @@ import type { CaptainRosterRow, CheckinEventType, StopRow } from "@/lib/types";
 
 // El referente solo marca la Ida; la Vuelta la maneja Admin.
 const DIRECTION = "outbound" as const;
+const SIGNAL_LOST_KEY = "peregrinacion_signal_lost";
 
 function hasAnyMedicalFlag(r: CaptainRosterRow) {
   return (
@@ -95,10 +96,21 @@ export function CaptainApp({
 
   useEffect(() => {
     let signalConfirmed = false;
+    // Se guarda también en sessionStorage: si la página se recarga por
+    // cualquier motivo, no se pierde que la señal se había cortado.
+    const markSignalLost = () => {
+      wasOfflineRef.current = true;
+      try {
+        sessionStorage.setItem(SIGNAL_LOST_KEY, "1");
+      } catch {}
+    };
+    try {
+      if (sessionStorage.getItem(SIGNAL_LOST_KEY)) wasOfflineRef.current = true;
+    } catch {}
     const update = () => {
       const isOnline = navigator.onLine;
       setOnline(isOnline);
-      if (!isOnline) wasOfflineRef.current = true;
+      if (!isOnline) markSignalLost();
     };
     const probe = async () => {
       if (signalConfirmed) return;
@@ -106,7 +118,7 @@ export function CaptainApp({
       if (!ok) {
         // cubre también la señal débil: el celular dice "conectado" pero
         // los datos no pasan (ahí nunca dispara el evento "offline")
-        wasOfflineRef.current = true;
+        markSignalLost();
       } else if (wasOfflineRef.current) {
         signalConfirmed = true;
         setSignalBack(true);
@@ -212,6 +224,9 @@ export function CaptainApp({
       return;
     }
     await syncPendingCheckins();
+    try {
+      sessionStorage.removeItem(SIGNAL_LOST_KEY);
+    } catch {}
     // Carga de página completa a propósito (no router.push): la navegación
     // del router puede fallar a medias con señal inestable y dejar al
     // referente en esta misma pantalla sin explicación.
