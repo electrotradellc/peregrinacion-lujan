@@ -8,7 +8,9 @@ import type {
   BusRow,
   CaptainRosterRow,
   AttendanceCheckinRow,
+  StartingPointRow,
 } from "@/lib/types";
+import { stopsForStartingPoint } from "@/lib/stops";
 import { AttendanceTable } from "@/components/attendance/AttendanceTable";
 import { OfflineModeBanner } from "@/components/captain/OfflineModeBanner";
 
@@ -35,12 +37,20 @@ export default async function CaptainAsistenciaPage({
 
   if (!assignment) notFound();
 
-  const [{ data: bus }, { data: stops }] = await Promise.all([
+  const [{ data: bus }, { data: allStops }] = await Promise.all([
     supabase.from("buses").select("*").eq("id", assignment.bus_id).single<BusRow>(),
     supabase.from("stops").select("*").eq("event_id", eventId).order("sequence_order").returns<StopRow[]>(),
   ]);
+  const { data: startingPoint } = bus
+    ? await supabase
+        .from("starting_points")
+        .select("first_stop_id")
+        .eq("id", bus.starting_point_id)
+        .maybeSingle<Pick<StartingPointRow, "first_stop_id">>()
+    : { data: null };
+  const stops = stopsForStartingPoint(allStops ?? [], startingPoint?.first_stop_id);
 
-  if (!stops?.length) {
+  if (!stops.length) {
     return <p className="text-sm text-neutral-500">Todavía no hay paradas configuradas.</p>;
   }
 

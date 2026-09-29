@@ -4,6 +4,7 @@ import type { EventRow, StartingPointRow, BusRow, StopRow, BusCaptainAssignmentR
 import { CollapsibleAddForm } from "@/components/admin/CollapsibleAddForm";
 import { StopListItem } from "@/components/admin/StopListItem";
 import { BusCapacityForm } from "@/components/admin/BusCapacityForm";
+import { AutoSubmitSelect } from "@/components/admin/AutoSubmitSelect";
 import { EmailTemplateSection } from "@/components/admin/EmailTemplateSection";
 import { buildEmailPreviews } from "@/lib/email/preview";
 import {
@@ -17,6 +18,7 @@ import {
   addStartingPointAction,
   deleteStartingPointAction,
   setStartingPointActiveAction,
+  setStartingPointFirstStopAction,
   addBusAction,
   deleteBusAction,
   addStopAction,
@@ -271,9 +273,13 @@ export default async function EventConfigPage({
           Desactivá un punto cuando se completen sus micros — deja de ofrecerse en la
           inscripción, pero no se pierden los inscriptos que ya lo eligieron.
         </p>
+        <p className="text-sm text-neutral-600">
+          &ldquo;Primera parada que marcan&rdquo; define qué paradas ve el referente de los micros
+          de ese punto: la Parroquia siempre, más esa parada y las siguientes.
+        </p>
         <ul className="divide-y divide-neutral-200">
           {(startingPoints ?? []).map((sp) => (
-            <li key={sp.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+            <li key={sp.id} className="flex flex-wrap items-center justify-between gap-3 py-2 text-sm">
               <span>
                 <strong>{sp.name}</strong> — presentarse {sp.presentation_time.slice(0, 5)}hs en{" "}
                 {sp.presentation_location}
@@ -282,6 +288,21 @@ export default async function EventConfigPage({
                     Cerrado
                   </span>
                 )}
+                <form
+                  action={setStartingPointFirstStopAction.bind(null, id, sp.id)}
+                  className="mt-1 flex items-center gap-2 text-xs text-neutral-600"
+                >
+                  <label>Primera parada que marcan:</label>
+                  <AutoSubmitSelect
+                    name="first_stop_id"
+                    defaultValue={sp.first_stop_id ?? ""}
+                    emptyLabel="Todas las paradas"
+                    options={(stops ?? [])
+                      .filter((s) => !s.is_presentation_stop)
+                      .map((s) => ({ value: s.id, label: `${s.sequence_order}. ${s.name}` }))}
+                    className="rounded-md border border-neutral-300 px-2 py-1 text-xs"
+                  />
+                </form>
               </span>
               <div className="flex shrink-0 items-center gap-3">
                 <form action={setStartingPointActiveAction.bind(null, id, sp.id, !sp.is_active)}>

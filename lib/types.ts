@@ -55,6 +55,7 @@ export interface StartingPointRow {
   presentation_location: string;
   notes: string | null;
   is_active: boolean;
+  first_stop_id: string | null;
   created_at: string;
 }
 
