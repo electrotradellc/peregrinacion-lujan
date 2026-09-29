@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { replaceRoster, replaceSyncedCheckins, setRosterSavedAt } from "@/lib/offline/db";
+import { replaceRoster, replaceSyncedCheckins } from "@/lib/offline/db";
 import {
   ATTENDANCE_SAVE_FAILED_EVENT,
   ATTENDANCE_SAVE_OK_EVENT,
@@ -79,7 +79,6 @@ export function OfflineModeBanner({
             synced: 1 as const,
           })),
         );
-        setRosterSavedAt(busId);
       } catch {
         // IndexedDB no disponible (ej. navegación privada) — la planilla
         // sigue funcionando igual, solo no queda preparado el respaldo.

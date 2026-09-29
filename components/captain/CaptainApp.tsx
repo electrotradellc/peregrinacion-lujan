@@ -2,16 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import {
-  db,
-  replaceRoster,
-  recordCheckin,
-  getRosterSavedAt,
-  setRosterSavedAt,
-  type RosterEntry,
-} from "@/lib/offline/db";
+import { db, replaceRoster, recordCheckin, type RosterEntry } from "@/lib/offline/db";
 import { checkConnection, syncPendingCheckins } from "@/lib/offline/syncQueue";
-import { createClient } from "@/lib/supabase/client";
 import type { CaptainRosterRow, CheckinEventType, StopRow } from "@/lib/types";
 
 // El referente solo marca la Ida; la Vuelta la maneja Admin.
@@ -29,16 +21,6 @@ function hasAnyMedicalFlag(r: CaptainRosterRow) {
     r.has_other_condition ||
     r.takes_medication
   );
-}
-
-function formatSavedAt(iso: string) {
-  return new Date(iso).toLocaleString("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "America/Argentina/Buenos_Aires",
-  });
 }
 
 // Modo sin conexión: las marcas se guardan en el celular (IndexedDB) y se
@@ -60,10 +42,6 @@ export function CaptainApp({
   initialRoster: CaptainRosterRow[];
 }) {
   const [stopId, setStopId] = useState(stops[0]?.id ?? "");
-  const [savedAt, setSavedAt] = useState<string | null>(null);
-  const [updatingRoster, setUpdatingRoster] = useState(false);
-  const [updateError, setUpdateError] = useState<string | null>(null);
-  const [online, setOnline] = useState(true);
   // "Volvió la señal" se avisa solo si en algún momento no hubo señal real
   // (y recién cuando el server responde de verdad, no apenas el celular
   // dice "conectado"). Si el referente entró a este modo con buena señal,
@@ -87,9 +65,7 @@ export function CaptainApp({
       const existing = await db.roster.where({ busId }).count();
       if (existing === 0 && initialRoster.length > 0) {
         await replaceRoster(busId, toEntries(initialRoster));
-        setRosterSavedAt(busId);
       }
-      setSavedAt(getRosterSavedAt(busId));
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -108,9 +84,7 @@ export function CaptainApp({
       if (sessionStorage.getItem(SIGNAL_LOST_KEY)) wasOfflineRef.current = true;
     } catch {}
     const update = () => {
-      const isOnline = navigator.onLine;
-      setOnline(isOnline);
-      if (!isOnline) markSignalLost();
+      if (!navigator.onLine) markSignalLost();
     };
     const probe = async () => {
       if (signalConfirmed) return;
@@ -147,7 +121,6 @@ export function CaptainApp({
       () => db.checkins.where({ busId, direction: DIRECTION, stopId }).toArray(),
       [busId, stopId],
     ) ?? [];
-  const pendingCount = useLiveQuery(() => db.checkins.where("synced").equals(0).count()) ?? 0;
 
   const lastStop = stops[stops.length - 1];
   const currentStop = stops.find((s) => s.id === stopId);
@@ -190,26 +163,6 @@ export function CaptainApp({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roster, checkinsAtStop, q, filter, sort, hideDeparture]);
-
-  async function handleUpdateRoster() {
-    setUpdatingRoster(true);
-    setUpdateError(null);
-    try {
-      const supabase = createClient();
-      const { data, error } = await supabase.rpc("get_captain_roster", {
-        p_bus_id: busId,
-        p_direction: DIRECTION,
-      });
-      if (error) throw error;
-      await replaceRoster(busId, toEntries((data as CaptainRosterRow[]) ?? []));
-      setRosterSavedAt(busId);
-      setSavedAt(getRosterSavedAt(busId));
-    } catch {
-      setUpdateError("No se pudo actualizar. Revisá la señal y probá de nuevo.");
-    } finally {
-      setUpdatingRoster(false);
-    }
-  }
 
   // Se mandan las marcas pendientes antes de volver, así la planilla (que
   // lee del server) ya las muestra al abrir. No se cambia de pantalla sola:
@@ -265,53 +218,7 @@ export function CaptainApp({
         </div>
       )}
 
-      <div className="rounded-lg border border-neutral-200 bg-white p-3 space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <span className="font-semibold">Modo sin conexión · Micro {busNumber}</span>
-          <button
-            type="button"
-            onClick={handleBackToSheet}
-            disabled={returning}
-            className="text-xs text-brand-ink underline disabled:opacity-60"
-          >
-            Volver a la planilla
-          </button>
-        </div>
-        <p className="text-xs text-neutral-500">
-          Las marcas se guardan en este celular y se envían solas cuando hay señal.
-        </p>
-
-        {pendingCount > 0 ? (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            <span>
-              {pendingCount} marca{pendingCount === 1 ? "" : "s"} guardada{pendingCount === 1 ? "" : "s"} en
-              el celular, todavía sin enviar.
-            </span>
-            <button
-              onClick={() => syncPendingCheckins()}
-              className="rounded-md border border-amber-300 bg-white px-2 py-1 text-xs font-medium"
-            >
-              Enviar ahora
-            </button>
-          </div>
-        ) : (
-          <div className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
-            ✓ Todas las marcas están enviadas.
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
-          <span>Listado guardado: {savedAt ? formatSavedAt(savedAt) : "—"}</span>
-          <button
-            onClick={handleUpdateRoster}
-            disabled={updatingRoster || !online}
-            className="rounded-md border border-neutral-300 px-2 py-1 disabled:opacity-50"
-          >
-            {updatingRoster ? "Actualizando..." : online ? "Actualizar listado" : "Actualizar listado (necesita señal)"}
-          </button>
-        </div>
-        {updateError && <p className="text-xs text-red-600">{updateError}</p>}
-      </div>
+      <h1 className="text-xl font-semibold">Modo sin conexión · Micro {busNumber}</h1>
 
       <div>
         <label className="text-sm font-medium">Parada actual</label>

@@ -74,16 +74,6 @@ export async function replaceSyncedCheckins(busId: string, serverCheckins: Local
   });
 }
 
-const rosterSavedAtKey = (busId: string) => `peregrinacion_roster_saved_at_${busId}`;
-
-export function setRosterSavedAt(busId: string) {
-  localStorage.setItem(rosterSavedAtKey(busId), new Date().toISOString());
-}
-
-export function getRosterSavedAt(busId: string): string | null {
-  return localStorage.getItem(rosterSavedAtKey(busId));
-}
-
 export async function getRoster(busId: string, direction: AssignmentDirection) {
   return db.roster.where({ busId, direction }).toArray();
 }
