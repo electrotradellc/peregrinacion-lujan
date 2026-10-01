@@ -149,6 +149,7 @@ export async function setRegistrationStatusAction(
     }
   }
 
+  // Al cancelar, un trigger en la base borra sus asignaciones de micro y su Nro.
   revalidatePath(`/admin/eventos/${eventId}/inscripciones/${registrationId}`);
   revalidatePath(`/admin/eventos/${eventId}/inscripciones`);
 }

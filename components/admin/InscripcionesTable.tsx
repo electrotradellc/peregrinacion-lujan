@@ -90,8 +90,13 @@ export function InscripcionesTable({
   const assignedBus = (registrationId: string, direction: "outbound" | "return") =>
     assignments.find((a) => a.registration_id === registrationId && a.direction === direction)
       ?.bus_id ?? "";
+  // Las canceladas no ocupan lugar (la base les borra la asignación al cancelar;
+  // el filtro cubre las que quedaron de antes de ese cambio).
+  const cancelledIds = new Set(registrations.filter((r) => r.status === "cancelled").map((r) => r.id));
   const countInBus = (busId: string, direction: "outbound" | "return") =>
-    assignments.filter((a) => a.bus_id === busId && a.direction === direction).length;
+    assignments.filter(
+      (a) => a.bus_id === busId && a.direction === direction && !cancelledIds.has(a.registration_id),
+    ).length;
 
   const filtered = useMemo(() => {
     let rows = registrations;
