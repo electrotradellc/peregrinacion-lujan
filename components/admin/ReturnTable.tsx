@@ -10,17 +10,8 @@ export interface ReturnRosterEntry {
   lastName: string;
   firstName: string;
   phone: string;
-  outboundBusNumber: number | null;
   arrivedAt: string | null; // llegada a la última parada de la ida
   returnBusId: string; // "" si todavía no tiene micro de vuelta
-}
-
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-AR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "America/Argentina/Buenos_Aires",
-  });
 }
 
 type Filter = "all" | "waiting" | "assigned" | "not-arrived";
@@ -192,8 +183,6 @@ export function ReturnTable({
               <th className="px-3 py-2">Nro</th>
               <th className="px-3 py-2">Apellido, Nombre</th>
               <th className="px-3 py-2">Celular</th>
-              <th className="px-3 py-2">Micro (ida)</th>
-              <th className="px-3 py-2">Llegó a Luján</th>
               <th className="px-3 py-2">Micro (vuelta)</th>
             </tr>
           </thead>
@@ -209,14 +198,6 @@ export function ReturnTable({
                     {r.phone}
                   </a>
                 </td>
-                <td className="px-3 py-2 text-neutral-700">{r.outboundBusNumber ?? "—"}</td>
-                <td className="px-3 py-2">
-                  {r.arrivedAt ? (
-                    <span className="text-xs text-green-700">{formatTime(r.arrivedAt)}</span>
-                  ) : (
-                    <span className="text-xs text-neutral-400">sin marcar</span>
-                  )}
-                </td>
                 <td className="px-3 py-2">
                   {r.arrivedAt || r.returnBusId ? (
                     <ReturnBusSelect eventId={eventId} entry={r} buses={buses} countByBus={countByBus} />
@@ -228,7 +209,7 @@ export function ReturnTable({
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-neutral-500">
+                <td colSpan={4} className="px-3 py-6 text-center text-neutral-500">
                   Nadie coincide con estos filtros.
                 </td>
               </tr>

@@ -32,7 +32,6 @@ export default async function VueltaPage({ params }: { params: Promise<{ id: str
   }
 
   const busIds = buses.map((b) => b.id);
-  const busNumberById = new Map(buses.map((b) => [b.id, b.bus_number]));
   const returnBusIds = (returnBuses ?? []).map((b) => b.id);
 
   const [{ data: outbound }, { data: arrivals }, { data: withdrawnRows }, { data: returnAssignments }] =
@@ -83,7 +82,6 @@ export default async function VueltaPage({ params }: { params: Promise<{ id: str
       lastName: a.registrations.last_name,
       firstName: a.registrations.first_name,
       phone: a.registrations.phone,
-      outboundBusNumber: busNumberById.get(a.bus_id) ?? null,
       arrivedAt: arrivedAtByRegistration.get(a.registration_id) ?? null,
       returnBusId: returnBusByRegistration.get(a.registration_id) ?? "",
     }));
