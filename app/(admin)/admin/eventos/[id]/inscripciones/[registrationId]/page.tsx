@@ -63,13 +63,19 @@ export default async function RegistrationDetailPage({
 
   if (!registration) notFound();
 
-  const [capacityByStartingPoint, { data: assignments }] = await Promise.all([
+  const [capacityByStartingPoint, { data: assignments }, { data: returnAssignment }] = await Promise.all([
     getCapacityByStartingPoint(supabase, id),
     supabase
       .from("bus_assignments")
       .select("*")
       .eq("registration_id", registrationId)
+      .eq("direction", "outbound")
       .returns<BusAssignmentRow[]>(),
+    supabase
+      .from("return_assignments")
+      .select("return_buses(bus_number)")
+      .eq("registration_id", registrationId)
+      .maybeSingle<{ return_buses: { bus_number: number } | null }>(),
   ]);
   const assignedBusIds = (assignments ?? []).map((a) => a.bus_id);
   const { data: assignedBuses } = assignedBusIds.length
@@ -78,8 +84,9 @@ export default async function RegistrationDetailPage({
   const assignedBusLabel = (assignments ?? [])
     .map((a) => {
       const bus = assignedBuses?.find((b) => b.id === a.bus_id);
-      return bus ? `Micro ${bus.bus_number} (${a.direction === "outbound" ? "ida" : "vuelta"})` : null;
+      return bus ? `Micro ${bus.bus_number} (ida)` : null;
     })
+    .concat(returnAssignment?.return_buses ? [`Micro ${returnAssignment.return_buses.bus_number} (vuelta)`] : [])
     .filter(Boolean)
     .join(", ");
 

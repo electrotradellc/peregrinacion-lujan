@@ -1,24 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 export function EventNav({ eventId }: { eventId: string }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
 
   const base = `/admin/eventos/${eventId}`;
-  const isAsistenciaRoute = pathname === `${base}/asistencia`;
-  const isVuelta = isAsistenciaRoute && searchParams.get("direction") === "return";
-
   const items = [
     { href: `${base}/config`, label: "Config", active: pathname === `${base}/config` },
     { href: `${base}/inscripciones`, label: "Inscripciones", active: pathname === `${base}/inscripciones` },
     { href: `${base}/lista-espera`, label: "Lista de espera", active: pathname === `${base}/lista-espera` },
-    { href: `${base}/asistencia`, label: "Asistencia", active: isAsistenciaRoute && !isVuelta },
-    { href: `${base}/asistencia?direction=return`, label: "Vuelta", active: isVuelta },
+    { href: `${base}/asistencia`, label: "Asistencia", active: pathname === `${base}/asistencia` },
+    { href: `${base}/vuelta`, label: "Vuelta", active: pathname === `${base}/vuelta` },
   ];
 
   return (

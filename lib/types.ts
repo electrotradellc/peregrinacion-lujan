@@ -158,6 +158,24 @@ export interface BusAssignmentRow {
   assigned_at: string;
 }
 
+// Micros de vuelta: lista propia (número + asientos), sin punto de partida.
+export interface ReturnBusRow {
+  id: string;
+  event_id: string;
+  bus_number: number;
+  capacity: number;
+  departed_at: string | null;
+  created_at: string;
+}
+
+export interface ReturnAssignmentRow {
+  id: string;
+  registration_id: string;
+  return_bus_id: string;
+  assigned_by: string | null;
+  assigned_at: string;
+}
+
 export interface AttendanceCheckinRow {
   id: string;
   registration_id: string;

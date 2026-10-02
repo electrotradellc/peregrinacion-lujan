@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 // Toggle rápido desde la lista de Inscripciones — evita tener que entrar a
-// la ficha completa solo para esto. Al marcarlo, la persona deja de
-// aparecer como opción asignable en el combo de micro de vuelta.
+// la ficha completa solo para esto. Al marcarlo, la persona sale de la lista
+// de Vuelta.
 export async function setReturnsIndependentlyAction(
   eventId: string,
   registrationId: string,
@@ -18,4 +18,5 @@ export async function setReturnsIndependentlyAction(
     .eq("id", registrationId);
   if (error) throw new Error(error.message);
   revalidatePath(`/admin/eventos/${eventId}/inscripciones`);
+  revalidatePath(`/admin/eventos/${eventId}/vuelta`);
 }

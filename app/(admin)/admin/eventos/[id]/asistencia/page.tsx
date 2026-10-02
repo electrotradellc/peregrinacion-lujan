@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { BusRow, StopRow, RegistrationRow, BusAssignmentRow, AssignmentDirection } from "@/lib/types";
 import { AttendanceTable } from "@/components/attendance/AttendanceTable";
@@ -12,6 +13,8 @@ export default async function AsistenciaPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
+  // La Vuelta tiene su propia pantalla; esto cubre links viejos.
+  if (sp.direction === "return") redirect(`/admin/eventos/${id}/vuelta`);
   const supabase = await createClient();
 
   const [{ data: buses }, { data: stops }] = await Promise.all([

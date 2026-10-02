@@ -3,7 +3,15 @@ import { getSessionProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { calculateAge } from "@/lib/age";
 import { statusLabel } from "@/lib/registrationStatus";
-import type { RegistrationRow, StartingPointRow, BusAssignmentRow, BusRow, EventRow } from "@/lib/types";
+import type {
+  RegistrationRow,
+  StartingPointRow,
+  BusAssignmentRow,
+  BusRow,
+  EventRow,
+  ReturnAssignmentRow,
+  ReturnBusRow,
+} from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -33,6 +41,7 @@ export async function GET(request: Request) {
     { data: buses },
     { data: outboundAssignments },
     { data: returnAssignments },
+    { data: returnBuses },
   ] = await Promise.all([
     supabase.from("events").select("*").eq("id", eventId).single<EventRow>(),
     supabase
@@ -47,11 +56,8 @@ export async function GET(request: Request) {
       .select("*")
       .eq("direction", "outbound")
       .returns<BusAssignmentRow[]>(),
-    supabase
-      .from("bus_assignments")
-      .select("*")
-      .eq("direction", "return")
-      .returns<BusAssignmentRow[]>(),
+    supabase.from("return_assignments").select("*").returns<ReturnAssignmentRow[]>(),
+    supabase.from("return_buses").select("*").eq("event_id", eventId).returns<ReturnBusRow[]>(),
   ]);
 
   const spName = (id: string) => startingPoints?.find((sp) => sp.id === id)?.name ?? "";
@@ -59,6 +65,12 @@ export async function GET(request: Request) {
     const assignment = assignments?.find((a) => a.registration_id === registrationId);
     if (!assignment) return null;
     return buses?.find((b) => b.id === assignment.bus_id)?.bus_number ?? null;
+  };
+
+  const returnBusNumberFor = (registrationId: string) => {
+    const assignment = returnAssignments?.find((a) => a.registration_id === registrationId);
+    if (!assignment) return null;
+    return returnBuses?.find((b) => b.id === assignment.return_bus_id)?.bus_number ?? null;
   };
 
   // Ordenado por micro de ida (los sin asignar al final) y después apellido,
@@ -110,7 +122,7 @@ export async function GET(request: Request) {
       r.phone,
       spName(r.starting_point_id),
       String(busNumberFor(r.id, outboundAssignments) ?? ""),
-      String(busNumberFor(r.id, returnAssignments) ?? ""),
+      String(returnBusNumberFor(r.id) ?? ""),
       r.returns_independently ? "Sí" : "No",
       r.emergency_contact_name,
       r.emergency_contact_phone,

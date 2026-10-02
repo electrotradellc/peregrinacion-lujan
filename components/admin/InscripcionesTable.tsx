@@ -73,7 +73,6 @@ export function InscripcionesTable({
   const [status, setStatus] = useState("");
   const [startingPointId, setStartingPointId] = useState("");
   const [busIda, setBusIda] = useState("");
-  const [busVuelta, setBusVuelta] = useState("");
   const [onlyMinors, setOnlyMinors] = useState(false);
   const [onlyIndependentJoiners, setOnlyIndependentJoiners] = useState(false);
   const [onlyIndependentReturners, setOnlyIndependentReturners] = useState(false);
@@ -87,15 +86,15 @@ export function InscripcionesTable({
   const medicalCount = (has: (r: RegistrationRow) => boolean) => activeRegistrations.filter(has).length;
 
   const spName = (spId: string) => startingPoints.find((sp) => sp.id === spId)?.name ?? "?";
-  const assignedBus = (registrationId: string, direction: "outbound" | "return") =>
-    assignments.find((a) => a.registration_id === registrationId && a.direction === direction)
-      ?.bus_id ?? "";
+  // El micro de vuelta no se asigna acá sino en Vuelta (lista propia de micros).
+  const assignedBus = (registrationId: string) =>
+    assignments.find((a) => a.registration_id === registrationId && a.direction === "outbound")?.bus_id ?? "";
   // Las canceladas no ocupan lugar (la base les borra la asignación al cancelar;
   // el filtro cubre las que quedaron de antes de ese cambio).
   const cancelledIds = new Set(registrations.filter((r) => r.status === "cancelled").map((r) => r.id));
-  const countInBus = (busId: string, direction: "outbound" | "return") =>
+  const countInBus = (busId: string) =>
     assignments.filter(
-      (a) => a.bus_id === busId && a.direction === direction && !cancelledIds.has(a.registration_id),
+      (a) => a.bus_id === busId && a.direction === "outbound" && !cancelledIds.has(a.registration_id),
     ).length;
 
   const filtered = useMemo(() => {
@@ -114,14 +113,7 @@ export function InscripcionesTable({
     }
     if (busIda) {
       rows = rows.filter((r) =>
-        busIda === "unassigned" ? !assignedBus(r.id, "outbound") : assignedBus(r.id, "outbound") === busIda,
-      );
-    }
-    if (busVuelta) {
-      rows = rows.filter((r) =>
-        busVuelta === "unassigned"
-          ? !assignedBus(r.id, "return")
-          : assignedBus(r.id, "return") === busVuelta,
+        busIda === "unassigned" ? !assignedBus(r.id) : assignedBus(r.id) === busIda,
       );
     }
     if (onlyMinors && eventDate) {
@@ -162,7 +154,6 @@ export function InscripcionesTable({
     status,
     startingPointId,
     busIda,
-    busVuelta,
     onlyMinors,
     onlyIndependentJoiners,
     onlyIndependentReturners,
@@ -212,20 +203,7 @@ export function InscripcionesTable({
           <option value="unassigned">Micro (ida): sin asignar</option>
           {buses.map((b) => (
             <option key={b.id} value={b.id}>
-              Micro (ida): {b.bus_number} ({countInBus(b.id, "outbound")}/{b.capacity})
-            </option>
-          ))}
-        </select>
-        <select
-          value={busVuelta}
-          onChange={(e) => setBusVuelta(e.target.value)}
-          className="rounded-md border border-neutral-300 px-3 py-1.5"
-        >
-          <option value="">Micro (vuelta): todos</option>
-          <option value="unassigned">Micro (vuelta): sin asignar</option>
-          {buses.map((b) => (
-            <option key={b.id} value={b.id}>
-              Micro (vuelta): {b.bus_number} ({countInBus(b.id, "return")}/{b.capacity})
+              Micro (ida): {b.bus_number} ({countInBus(b.id)}/{b.capacity})
             </option>
           ))}
         </select>
@@ -287,7 +265,6 @@ export function InscripcionesTable({
                 </SortButton>
               </th>
               <th className="px-4 py-2">Micro (ida)</th>
-              <th className="px-4 py-2">Micro (vuelta)</th>
               <th className="px-4 py-2">Vuelve por su cuenta</th>
               <th className="px-4 py-2">
                 <SortButton active={sort === "recent"} onClick={() => setSort("recent")}>
@@ -342,35 +319,16 @@ export function InscripcionesTable({
                       <form action={assignToBusAction.bind(null, eventId, "outbound", r.id)}>
                         <AutoSubmitSelect
                           name="bus_id"
-                          defaultValue={assignedBus(r.id, "outbound")}
+                          defaultValue={assignedBus(r.id)}
                           className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
                           options={spBuses.map((b) => ({
                             value: b.id,
-                            label: `Micro ${b.bus_number} (${countInBus(b.id, "outbound")}/${b.capacity})`,
+                            label: `Micro ${b.bus_number} (${countInBus(b.id)}/${b.capacity})`,
                           }))}
                         />
                       </form>
                     ) : (
                       <span className="text-neutral-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2">
-                    {canAssign && !r.returns_independently ? (
-                      <form action={assignToBusAction.bind(null, eventId, "return", r.id)}>
-                        <AutoSubmitSelect
-                          name="bus_id"
-                          defaultValue={assignedBus(r.id, "return")}
-                          className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
-                          options={spBuses.map((b) => ({
-                            value: b.id,
-                            label: `Micro ${b.bus_number} (${countInBus(b.id, "return")}/${b.capacity})`,
-                          }))}
-                        />
-                      </form>
-                    ) : (
-                      <span className="text-neutral-400">
-                        {r.returns_independently ? "vuelve por su cuenta" : "—"}
-                      </span>
                     )}
                   </td>
                   <td className="px-4 py-2">
