@@ -161,6 +161,28 @@ export default async function RegistrationDetailPage({
             </form>
           )}
           {registration.status === "cancelled" && (
+            <>
+              {/* Deshacer una cancelación: el micro y el Nro se perdieron al cancelar,
+                  hay que asignarlos de nuevo. Confirmada reenvía el mail de pago. */}
+              <form action={setRegistrationStatusAction.bind(null, id, registrationId, "confirmed")}>
+                <button
+                  title="Vuelve a confirmada (ya había pagado). Hay que asignarle micro de nuevo."
+                  className="rounded-md bg-green-700 px-3 py-1.5 text-sm text-white"
+                >
+                  Reactivar como confirmada
+                </button>
+              </form>
+              <form action={setRegistrationStatusAction.bind(null, id, registrationId, "pending_payment")}>
+                <button
+                  title="Vuelve a pendiente de pago (todavía no había pagado)."
+                  className="rounded-md border border-green-700 px-3 py-1.5 text-sm text-green-800"
+                >
+                  Reactivar como pendiente de pago
+                </button>
+              </form>
+            </>
+          )}
+          {registration.status === "cancelled" && (
             <DeleteRegistrationButton
               eventId={id}
               registrationId={registrationId}
