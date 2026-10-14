@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { replaceRoster, replaceSyncedCheckins } from "@/lib/offline/db";
+import { SyncStatusBar } from "@/components/captain/SyncStatusBar";
 import {
   ATTENDANCE_SAVE_FAILED_EVENT,
   ATTENDANCE_SAVE_OK_EVENT,
@@ -92,27 +93,30 @@ export function OfflineModeBanner({
     fetch(offlineUrl, { credentials: "same-origin" }).catch(() => {});
   }, [offlineUrl]);
 
-  if (!online || saveFailed) {
-    return (
-      <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-        <p className="font-semibold">{online ? "Parece que no hay buena señal." : "Estás sin señal."}</p>
-        <p className="mt-1">
-          {online
-            ? "Una marca no se pudo guardar. "
-            : "Las marcas de esta planilla no se van a guardar. "}
-          Pasá al modo sin conexión: guarda las marcas en el celular y las envía solas cuando
-          vuelva la señal.
-        </p>
-        <button
-          type="button"
-          onClick={openOfflineMode}
-          className="mt-3 w-full rounded-md bg-amber-600 px-4 py-2 font-semibold text-white"
-        >
-          Abrir modo sin conexión
-        </button>
-      </div>
-    );
-  }
+  const showOfflineAlert = !online || saveFailed;
 
-  return null;
+  return (
+    <div className="space-y-3">
+      <SyncStatusBar />
+      {showOfflineAlert && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          <p className="font-semibold">{online ? "Parece que no hay buena señal." : "Estás sin señal."}</p>
+          <p className="mt-1">
+            {online
+              ? "Una marca no se pudo guardar. "
+              : "Las marcas de esta planilla no se van a guardar. "}
+            Pasá al modo sin conexión: guarda las marcas en el celular y las envía solas cuando
+            vuelva la señal.
+          </p>
+          <button
+            type="button"
+            onClick={openOfflineMode}
+            className="mt-3 w-full rounded-md bg-amber-600 px-4 py-2 font-semibold text-white"
+          >
+            Abrir modo sin conexión
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }

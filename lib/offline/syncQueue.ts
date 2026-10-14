@@ -1,6 +1,9 @@
 import { db, getPendingCheckins, markSynced } from "./db";
 
 const BATCH_SIZE = 25;
+// Con señal débil un pedido puede quedar colgado para siempre: se corta y se
+// reintenta más tarde en vez de dejar el envío "en curso" indefinidamente.
+const BATCH_TIMEOUT_MS = 15000;
 
 export interface SyncResult {
   attempted: number;
@@ -8,11 +11,24 @@ export interface SyncResult {
   failed: number;
 }
 
+let inFlight: Promise<SyncResult> | null = null;
+
 // Manda los check-ins pendientes al server en lotes chicos. Se puede llamar
-// las veces que haga falta (al reconectar, cada 30s, a mano) sin riesgo de
-// duplicar nada: el server es idempotente tanto por `id` como por la clave
+// las veces que haga falta (al reconectar, periódicamente, a mano) sin riesgo
+// de duplicar nada: el server es idempotente tanto por `id` como por la clave
 // de negocio (registration_id, bus_id, stop_id, direction, event_type).
-export async function syncPendingCheckins(): Promise<SyncResult> {
+// Si ya hay un envío en curso, se espera ese mismo en vez de lanzar otro: con
+// señal débil los envíos en paralelo se pisan y la saturan.
+export function syncPendingCheckins(): Promise<SyncResult> {
+  if (!inFlight) {
+    inFlight = runSync().finally(() => {
+      inFlight = null;
+    });
+  }
+  return inFlight;
+}
+
+async function runSync(): Promise<SyncResult> {
   const pending = await getPendingCheckins();
   if (pending.length === 0) return { attempted: 0, synced: 0, failed: 0 };
 
@@ -21,10 +37,13 @@ export async function syncPendingCheckins(): Promise<SyncResult> {
 
   for (let i = 0; i < pending.length; i += BATCH_SIZE) {
     const batch = pending.slice(i, i + BATCH_SIZE);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), BATCH_TIMEOUT_MS);
     try {
       const res = await fetch("/api/checkins/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           checkins: batch.map((c) => ({
             id: c.id,
@@ -48,7 +67,12 @@ export async function syncPendingCheckins(): Promise<SyncResult> {
       synced += json.acceptedIds.length;
       failed += batch.length - json.acceptedIds.length;
     } catch {
-      failed += batch.length;
+      // Sin señal o pedido cortado: no tiene sentido intentar los lotes que
+      // siguen en este mismo momento, se reintenta en el próximo ciclo.
+      failed += pending.length - i;
+      break;
+    } finally {
+      clearTimeout(timer);
     }
   }
 

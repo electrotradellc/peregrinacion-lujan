@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, replaceRoster, recordCheckin, type RosterEntry } from "@/lib/offline/db";
 import { checkConnection, syncPendingCheckins } from "@/lib/offline/syncQueue";
+import {
+  acknowledgeRecovered,
+  getServerSnapshot,
+  getSnapshot,
+  kickSync,
+  subscribe,
+} from "@/lib/offline/syncStatus";
+import { SyncStatusBar } from "@/components/captain/SyncStatusBar";
 import type { CaptainRosterRow, CheckinEventType, StopRow } from "@/lib/types";
 
 // El referente solo marca la Ida; la Vuelta la maneja Admin.
 const DIRECTION = "outbound" as const;
-const SIGNAL_LOST_KEY = "peregrinacion_signal_lost";
 
 function hasAnyMedicalFlag(r: CaptainRosterRow) {
   return (
@@ -45,9 +52,9 @@ export function CaptainApp({
   // "Volvió la señal" se avisa solo si en algún momento no hubo señal real
   // (y recién cuando el server responde de verdad, no apenas el celular
   // dice "conectado"). Si el referente entró a este modo con buena señal,
-  // no hay nada que avisar.
-  const wasOfflineRef = useRef(false);
-  const [signalBack, setSignalBack] = useState(false);
+  // no hay nada que avisar. El chequeo y el envío de marcas los hace el ciclo
+  // compartido (lib/offline/syncStatus), que arranca con el indicador fijo.
+  const signalBack = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot).recovered;
   const [returning, setReturning] = useState(false);
   const [backError, setBackError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -68,50 +75,6 @@ export function CaptainApp({
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    let signalConfirmed = false;
-    // Se guarda también en sessionStorage: si la página se recarga por
-    // cualquier motivo, no se pierde que la señal se había cortado.
-    const markSignalLost = () => {
-      wasOfflineRef.current = true;
-      try {
-        sessionStorage.setItem(SIGNAL_LOST_KEY, "1");
-      } catch {}
-    };
-    try {
-      if (sessionStorage.getItem(SIGNAL_LOST_KEY)) wasOfflineRef.current = true;
-    } catch {}
-    const update = () => {
-      if (!navigator.onLine) markSignalLost();
-    };
-    const probe = async () => {
-      if (signalConfirmed) return;
-      const ok = await checkConnection();
-      if (!ok) {
-        // cubre también la señal débil: el celular dice "conectado" pero
-        // los datos no pasan (ahí nunca dispara el evento "offline")
-        markSignalLost();
-      } else if (wasOfflineRef.current) {
-        signalConfirmed = true;
-        setSignalBack(true);
-      }
-    };
-    const run = () => {
-      update();
-      syncPendingCheckins();
-      probe();
-    };
-    run();
-    window.addEventListener("online", run);
-    window.addEventListener("offline", update);
-    const interval = setInterval(run, 15000);
-    return () => {
-      window.removeEventListener("online", run);
-      window.removeEventListener("offline", update);
-      clearInterval(interval);
-    };
   }, []);
 
   const roster =
@@ -204,9 +167,7 @@ export function CaptainApp({
       return;
     }
     await syncPendingCheckins();
-    try {
-      sessionStorage.removeItem(SIGNAL_LOST_KEY);
-    } catch {}
+    acknowledgeRecovered();
     // Carga de página completa a propósito (no router.push): la navegación
     // del router puede fallar a medias con señal inestable y dejar al
     // referente en esta misma pantalla sin explicación.
@@ -216,7 +177,7 @@ export function CaptainApp({
 
   async function handleCheckin(registrationId: string, eventType: CheckinEventType) {
     await recordCheckin({ registrationId, busId, stopId, direction: DIRECTION, eventType, recordedBy });
-    if (navigator.onLine) syncPendingCheckins();
+    kickSync();
   }
 
   return (
@@ -246,6 +207,8 @@ export function CaptainApp({
       )}
 
       <h1 className="text-xl font-semibold">Modo sin conexión · Micro {busNumber}</h1>
+
+      <SyncStatusBar />
 
       <div>
         <label className="text-sm font-medium">Parada actual</label>
