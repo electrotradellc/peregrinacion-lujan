@@ -57,8 +57,8 @@ export async function updateReturnBusCapacityAction(
   return {};
 }
 
-// "Salió": cierra el micro (ya no se le puede asignar gente) y guarda la hora.
-// Se puede reabrir si se marcó por error.
+// "Salió": marca el micro como cerrado y guarda la hora (pasa a la solapa
+// Micros). Se puede reabrir si se marcó por error.
 export async function setReturnBusDepartedAction(
   eventId: string,
   busId: string,
@@ -92,8 +92,9 @@ export async function deleteReturnBusAction(eventId: string, busId: string): Pro
 }
 
 // Asigna (o saca, con bus_id vacío) el micro de vuelta de una persona. La
-// asignación es el "boleto": sirve para saber que se fue y en qué micro.
-// Solo se puede asignar a quien marcó "Llegó" en la última parada de la ida.
+// asignación es el "boleto": sirve para saber que se fue y en qué micro. Vale
+// también para mover a alguien de un micro a otro, o corregir un micro que ya
+// salió.
 export async function assignReturnBusAction(
   eventId: string,
   registrationId: string,
@@ -110,53 +111,102 @@ export async function assignReturnBusAction(
     return {};
   }
 
-  const { data: registration } = await supabase
-    .from("registrations")
-    .select("status, returns_independently")
-    .eq("id", registrationId)
-    .single<Pick<RegistrationRow, "status" | "returns_independently">>();
-  if (!registration || registration.status !== "confirmed") {
-    return { error: "La inscripción no está confirmada." };
-  }
-  if (registration.returns_independently) {
-    return { error: "Esta persona vuelve por su cuenta." };
-  }
-
-  const { data: lastStop } = await supabase
-    .from("stops")
-    .select("id")
-    .eq("event_id", eventId)
-    .order("sequence_order", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (!lastStop) return { error: "El evento no tiene paradas configuradas." };
-
-  const [{ data: arrivals }, { data: withdrawals }] = await Promise.all([
-    supabase
-      .from("attendance_checkins")
-      .select("id")
-      .eq("registration_id", registrationId)
-      .eq("stop_id", lastStop.id)
-      .eq("direction", "outbound")
-      .eq("event_type", "arrival")
-      .limit(1),
-    supabase
-      .from("attendance_checkins")
-      .select("id")
-      .eq("registration_id", registrationId)
-      .eq("event_type", "withdrawn")
-      .limit(1),
-  ]);
-  if (withdrawals?.length) return { error: "Esta persona se retiró de la peregrinación." };
-  if (!arrivals?.length) {
-    return { error: "No tiene marcada la llegada a la última parada: no se le puede asignar micro de vuelta." };
-  }
+  const invalid = await findIneligible(supabase, [registrationId]);
+  if (invalid) return { error: invalid };
 
   const { error } = await supabase.from("return_assignments").upsert(
     { registration_id: registrationId, return_bus_id: busId, assigned_by: session.userId },
     { onConflict: "registration_id" },
   );
   if (error) return { error: error.message };
+
+  revalidateVuelta(eventId);
+  return {};
+}
+
+// Quién no puede tener micro de vuelta: no confirmado, vuelve por su cuenta o
+// se retiró. Devuelve el motivo, o null si todos pueden.
+async function findIneligible(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  registrationIds: string[],
+): Promise<string | null> {
+  const [{ data: registrations }, { data: withdrawals }] = await Promise.all([
+    supabase
+      .from("registrations")
+      .select("id, status, returns_independently")
+      .in("id", registrationIds)
+      .returns<Pick<RegistrationRow, "id" | "status" | "returns_independently">[]>(),
+    supabase
+      .from("attendance_checkins")
+      .select("registration_id")
+      .in("registration_id", registrationIds)
+      .eq("event_type", "withdrawn"),
+  ]);
+  if ((registrations ?? []).length !== registrationIds.length) return "No se encontró alguna inscripción.";
+  if ((registrations ?? []).some((r) => r.status !== "confirmed")) return "Alguna inscripción no está confirmada.";
+  if ((registrations ?? []).some((r) => r.returns_independently)) return "Alguna persona vuelve por su cuenta.";
+  if (withdrawals?.length) return "Alguna persona se retiró de la peregrinación.";
+  return null;
+}
+
+// Asigna varias personas al mismo micro de una vez (las tildadas en la lista).
+// Es todo o nada: si el micro no tiene lugar para todas, no asigna ninguna.
+// Con close = true, además marca el micro como que salió.
+export async function assignManyToReturnBusAction(
+  eventId: string,
+  busId: string,
+  registrationIds: string[],
+  close: boolean,
+): Promise<ReturnActionResult> {
+  const session = await requireAdmin();
+  if (!busId) return { error: "Elegí el micro de vuelta." };
+  if (registrationIds.length === 0) return { error: "No hay personas tildadas." };
+
+  const supabase = await createClient();
+  const { data: bus } = await supabase
+    .from("return_buses")
+    .select("bus_number, capacity")
+    .eq("id", busId)
+    .single<{ bus_number: number; capacity: number }>();
+  if (!bus) return { error: "No se encontró el micro." };
+
+  // Los que ya están en este micro no ocupan lugar nuevo.
+  const { data: current } = await supabase
+    .from("return_assignments")
+    .select("registration_id")
+    .eq("return_bus_id", busId);
+  const inBus = new Set((current ?? []).map((a) => a.registration_id));
+  const incoming = registrationIds.filter((id) => !inBus.has(id)).length;
+  if (inBus.size + incoming > bus.capacity) {
+    const free = Math.max(0, bus.capacity - inBus.size);
+    return {
+      error: `El micro ${bus.bus_number} tiene ${free} lugar${free === 1 ? "" : "es"} libre${free === 1 ? "" : "s"} y tildaste ${incoming}.`,
+    };
+  }
+
+  const invalid = await findIneligible(supabase, registrationIds);
+  if (invalid) return { error: invalid };
+
+  const { error } = await supabase.from("return_assignments").upsert(
+    registrationIds.map((registration_id) => ({
+      registration_id,
+      return_bus_id: busId,
+      assigned_by: session.userId,
+    })),
+    { onConflict: "registration_id" },
+  );
+  if (error) return { error: error.message };
+
+  if (close) {
+    const { error: closeError } = await supabase
+      .from("return_buses")
+      .update({ departed_at: new Date().toISOString() })
+      .eq("id", busId);
+    if (closeError) {
+      revalidateVuelta(eventId);
+      return { error: `Se asignaron las personas, pero no se pudo cerrar el micro: ${closeError.message}` };
+    }
+  }
 
   revalidateVuelta(eventId);
   return {};
